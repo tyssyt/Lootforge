@@ -1,0 +1,5 @@
+set -e | exit
+
+ssh tys@pihole.home 'rm -rf /var/www/html/lootforge/*'
+scp -r dist/* tys@pihole.home:/var/www/html/lootforge
+echo 'Successfully shipped lootforge to tys@pihole.home:/var/www/html/lootforge'

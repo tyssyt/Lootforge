@@ -1,0 +1,12 @@
+[package]
+name = "lootforge_macros"
+version = "0.1.0"
+authors = ["tys"]
+edition = "2021"
+
+[lib]
+name = "lootforge_macros"
+path = "src/lib.rs"
+proc-macro = true
+
+[dependencies]

@@ -1,0 +1,20 @@
+# Mac stuff:
+.DS_Store
+
+# trunk output folder
+dist
+
+# Rust compile target directories:
+target
+target_ra
+target_wasm
+
+# (✿◠‿◠)
+.vscode
+
+# (•̀ᴗ•́)و ̑̑
+.wrangler
+node_modules
+
+# (´・ω・)っ由由由
+assets/stuff

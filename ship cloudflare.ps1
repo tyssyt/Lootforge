@@ -1,0 +1,1 @@
+trunk build --release; npx wrangler pages deploy

@@ -1,0 +1,1 @@
+trunk build --release; wsl ./ship
