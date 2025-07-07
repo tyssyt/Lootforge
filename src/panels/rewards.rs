@@ -1,6 +1,11 @@
 use std::f32::consts::PI;
 
-use crate::{dungeon::reward::RewardChest, item::{Item, ItemType}, prelude::*, stash::stash::Stash};
+use crate::{
+    dungeon::reward::RewardChest,
+    item::{Item, ItemType},
+    prelude::*,
+    stash::stash::Stash,
+};
 use egui::{emath::inverse_lerp, epaint::RectShape};
 use rand::distr::Uniform;
 use rand_chacha::ChaCha12Rng;
@@ -8,10 +13,10 @@ use web_time::SystemTime;
 
 use crate::{dungeon::dungeon::DungeonData, widgets::selectable_image::SelectableImage};
 
-#[derive(Default)]
+#[derive(Debug, SmartDefault)]
 pub struct RewardsWindow {
-    open: bool,  
-    opening: Option<ChestOpening>,  
+    open: bool,
+    opening: Option<ChestOpening>,
 }
 
 impl RewardsWindow {
@@ -38,7 +43,7 @@ impl RewardsWindow {
                         } else {
                             let response = add_chest_button(ui);
                             if response.clicked() {
-                                self.opening = Some( ChestOpening {
+                                self.opening = Some(ChestOpening {
                                     start: SystemTime::now(),
                                     chest_start_rect: response.rect,
                                     chest_idx: i,
@@ -57,7 +62,7 @@ impl RewardsWindow {
                     });
                 }
             });
-        
+
         if let Some(opening) = &mut self.opening {
             if opening.show(ctx, &dungeon.rewards[opening.chest_idx]) {
                 let reward = dungeon.rewards.remove(opening.chest_idx);
@@ -72,6 +77,7 @@ impl RewardsWindow {
     }
 }
 
+#[derive(Debug)]
 struct ChestOpening {
     start: SystemTime,
     chest_start_rect: Rect,
@@ -90,7 +96,7 @@ impl ChestOpening {
         let mut ui = Ui::new(
             ctx.clone(),
             "ChestOpeningUi".into(),
-            UiBuilder::new().layer_id(LayerId::new(Order::Foreground, "ChestOpeningLayer".into()))
+            UiBuilder::new().layer_id(LayerId::new(Order::Foreground, "ChestOpeningLayer".into())),
         );
 
         let elapsed = self.start.elapsed().unwrap().as_secs_f32();
@@ -127,7 +133,7 @@ impl ChestOpening {
             0.33,
             0.0..=1.0,
             false,
-            t
+            t,
         ));
         ui.put(target, chest_img());
     }
@@ -143,17 +149,9 @@ impl ChestOpening {
         let size = lerp(20.0..=full_size, t);
         ui.painter().add(circle(target.center(), size, Color32::YELLOW.gamma_multiply(0.8)));
 
-        ui.painter().extend(rays(
-            self.seed,
-            ui.max_rect(),
-            50,
-            0.5,
-            0.0..=1.0,
-            true,
-            t
-        ));
+        ui.painter().extend(rays(self.seed, ui.max_rect(), 50, 0.5, 0.0..=1.0, true, t));
 
-        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) *0.5;
+        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) * 0.5;
         let item_dist = lerp(0.0..=item_max_dist, easing::quadratic_out(t));
         let item_rotation = lerp(0.0..=PI, easing::quadratic_out(t));
         spin_items(ui, items, item_dist, item_rotation);
@@ -167,8 +165,8 @@ impl ChestOpening {
         let full_size = ui.max_rect().size().min_elem() * 4.0;
         ui.painter().add(circle(target.center(), full_size, Color32::YELLOW.gamma_multiply(lerp(0.8..=0.0, easing::quadratic_in_out(t)))));
 
-        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) *0.5;
-        let item_rotation = lerp(PI..=1.5*PI, t);
+        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) * 0.5;
+        let item_rotation = lerp(PI..=1.5 * PI, t);
         spin_items(ui, items, item_max_dist, item_rotation);
 
         ui.put(target, open_chest_img());
@@ -177,8 +175,8 @@ impl ChestOpening {
     fn spin(&self, ui: &mut Ui, items: &Vec<Item>, t: f32) {
         let target = self.target(ui);
 
-        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) *0.5;
-        let item_rotation = lerp(1.5*PI..=2.0*PI, t);
+        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) * 0.5;
+        let item_rotation = lerp(1.5 * PI..=2.0 * PI, t);
         spin_items(ui, items, item_max_dist, item_rotation);
 
         ui.put(target, open_chest_img());
@@ -186,10 +184,10 @@ impl ChestOpening {
 
     fn collect(&self, ui: &mut Ui, items: &Vec<Item>, t: f32) {
         let target = self.target(ui);
-        
-        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) *0.5;
+
+        let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) * 0.5;
         spin_items(ui, items, lerp(item_max_dist..=0.0, easing::quadratic_in_out(t)), 0.);
-        
+
         ui.put(target, open_chest_img());
     }
 
@@ -198,7 +196,7 @@ impl ChestOpening {
         Window::new("Opened Chest")
             .title_bar(false)
             .resizable(false)
-            .show(ctx, |ui| {                
+            .show(ctx, |ui| {
                 for item in items {
                     ui.horizontal_top(|ui| {
                         item.show(ui);
@@ -227,11 +225,12 @@ fn circle(center: Pos2, diameter: f32, color: Color32) -> RectShape {
         color,
         Stroke::NONE,
         StrokeKind::Outside,
-    ).with_blur_width(diameter * 0.5)
+    )
+    .with_blur_width(diameter * 0.5)
 }
 
 fn spin_items(ui: &mut Ui, items: &Vec<Item>, dist: f32, rot: f32) {
-    let rot_offset = 2.0*PI / items.len() as f32;
+    let rot_offset = 2.0 * PI / items.len() as f32;
 
     for (idx, item) in items.iter().enumerate() {
         let rot = rot + (idx as f32 * rot_offset);
@@ -242,12 +241,28 @@ fn spin_items(ui: &mut Ui, items: &Vec<Item>, dist: f32, rot: f32) {
     }
 }
 
-fn rays(seed: [u8; 32], screen: Rect, amount: usize, duration: f32, spread_between: RangeInclusive<f32>, reverse: bool, t: f32) -> Vec<Shape> {
+fn rays(
+    seed: [u8; 32],
+    screen: Rect,
+    amount: usize,
+    duration: f32,
+    spread_between: RangeInclusive<f32>,
+    reverse: bool,
+    t: f32,
+) -> Vec<Shape> {
     let mut rng = ChaCha12Rng::from_seed(seed);
 
-    let start_uniform = Uniform::new(spread_between.start(), spread_between.end()-duration).unwrap();
-    let angle_uniform = Uniform::new(0., 2.*PI).unwrap();
-    const COLORS: [Color32; 6] = [Color32::RED, Color32::ORANGE, Color32::YELLOW, Color32::CYAN, Color32::LIGHT_BLUE, Color32::LIGHT_GREEN];
+    let start_uniform =
+        Uniform::new(spread_between.start(), spread_between.end() - duration).unwrap();
+    let angle_uniform = Uniform::new(0., 2. * PI).unwrap();
+    const COLORS: [Color32; 6] = [
+        Color32::RED,
+        Color32::ORANGE,
+        Color32::YELLOW,
+        Color32::CYAN,
+        Color32::LIGHT_BLUE,
+        Color32::LIGHT_GREEN,
+    ];
 
     let mut rays = Vec::new();
     for _ in 0..amount {
@@ -256,8 +271,12 @@ fn rays(seed: [u8; 32], screen: Rect, amount: usize, duration: f32, spread_betwe
         let color = *COLORS.choose(&mut rng).unwrap();
 
         let mut progress = inverse_lerp(start..=start + duration, t).unwrap();
-        if progress < 0. || progress > 1. { continue };
-        if reverse { progress = 1.-progress };
+        if progress < 0. || progress > 1. {
+            continue;
+        };
+        if reverse {
+            progress = 1. - progress
+        };
         rays.push(ray(screen, angle, color, progress));
     }
     rays
@@ -273,10 +292,7 @@ fn ray(screen: Rect, angle: f32, color: Color32, progress: f32) -> Shape {
     let start = max.lerp(center, progress);
     let end = max_extended.lerp(center, progress);
 
-    Shape::LineSegment {
-        points: [start, end],
-        stroke: Stroke { width: 8., color },
-    }
+    Shape::LineSegment { points: [start, end], stroke: Stroke { width: 8., color }}
 }
 
 pub fn add_chest_button(ui: &mut Ui) -> Response {
@@ -287,8 +303,14 @@ fn add_chest_button_placeholder(ui: &mut Ui) -> Response {
 }
 
 fn chest_img<'a>() -> Image<'a> {
-    Image::new(egui::include_image!("../../assets/icons/locked-chest.png")).fit_to_exact_size(vec2(32., 32.)).tint(Color32::GOLD)
+    Image::new(egui::include_image!("../../assets/icons/locked-chest.png"))
+        .fit_to_exact_size(vec2(32., 32.))
+        .tint(Color32::GOLD)
 }
 fn open_chest_img<'a>() -> Image<'a> {
-    Image::new(egui::include_image!("../../assets/icons/open-treasure-chest.png")).fit_to_exact_size(vec2(32., 32.)).tint(Color32::GOLD)
+    Image::new(egui::include_image!(
+        "../../assets/icons/open-treasure-chest.png"
+    ))
+    .fit_to_exact_size(vec2(32., 32.))
+    .tint(Color32::GOLD)
 }

@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::combat::combatant::{CharStats, Combatant};
 use crate::combat::skill::{attack, defend};
+use crate::equipment::equipment::{Equip, EquipEnum};
 use crate::item::Item;
 use crate::{combat::hooks::CombatHooks, item::ItemType};
 use crate::prelude::*;
@@ -24,15 +25,19 @@ impl Skill { // constructors
         self.cd = self.cooldown();
         self.uses = 0;
     }
-    pub fn from_item(item: Rc<Item>, targeting: Option<Targeting>) -> Option<Self> {
+    pub fn from_item(item: Rc<Item>, equip: &EquipEnum) -> Option<Self> {
         if let Some(kind) = SkillKind::from_item_type(item.item_type) {
             let mut hooks = CombatHooks::default();
-            item.mods.iter().for_each(|m| m.register(&mut hooks));
+            item.mods.iter().for_each(|m| m.register(&mut hooks, &item, equip));
+
+            let targeting = item.targeting
+                .or_else(|| equip.get_linked_item(&item).upgrade().and_then(|i| i.targeting))
+                .unwrap_or(kind.default_targeting());
 
             let mut res = Self {
                 source: SkillSource::Item(item.id, item.item_type),
                 kind,
-                targeting: targeting.unwrap_or(kind.default_targeting()),
+                targeting,
                 hooks: hooks,
                 cd: 0,
                 uses: 0,
@@ -103,7 +108,6 @@ impl Skill {
         if reset_cooldown {
             self.cd = self.cooldown();
         }
-        self.uses += 1;
         skill_stats
     }
     pub fn trigger_against_target(
@@ -125,7 +129,7 @@ impl Skill {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[apply(UnitEnum)]
 pub enum SkillKind {
     Attack ,
     AoeAttack,
@@ -151,13 +155,6 @@ impl SkillKind {
         }
     }
 
-    pub fn is_attack(&self) -> bool {
-        match self {
-            SkillKind::Attack | AoeAttack => true,
-            SkillKind::Defend => false,
-        }
-    }
-
     pub fn base_cooldown(&self) -> u16 {
         match self {
             SkillKind::Attack => 20,
@@ -166,12 +163,15 @@ impl SkillKind {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq)]
+
+#[apply(Enum)]
+#[derive(PartialEq)]
 pub enum SkillSource {
     Item(usize, ItemType),
     Enemy(u16),
 }
 
+#[apply(Enum)]
 pub enum SkillStats {
     Attack(SkillSource, AttackStats),
     Defend(SkillSource, DefStats),

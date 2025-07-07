@@ -5,8 +5,8 @@ use crate::{combat::combatant::Combatant, elemental::Element};
 
 use Targeting::*;
 
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[apply(Enum)]
+#[derive(Copy, PartialEq)]
 pub enum Targeting {
     // default
     First,
@@ -28,7 +28,7 @@ pub enum Targeting {
     OnAttack,
 }
 impl Targeting {
-    pub fn roll_ring<R: Rng>(rng: &mut R) -> Self {
+    pub fn roll_ring(rng: &mut impl Rng) -> Self {
         match rng.random_range(0..4) {
             0 => LowestHealth,
             1 => LowestEffectiveHealth(*Element::VARIANTS.choose(rng).unwrap()),
@@ -46,7 +46,7 @@ impl Targeting {
             LowestResistance(element) => targets.iter_mut().min_by_key(|t| F32Ord(*t.stats().resistances.get(*element))).unwrap(), // TODO incredibly inefficient because char() does not get cached
             HighestRank => todo!(),
             LowestRank => todo!(),
-            RoundRobin(i) => {let len = targets.len(); *i += 1; targets[*i as usize % len]}, // TODO this behaves a bit weird when an enemy dies
+            RoundRobin(i) => {let len = targets.len(); *i = i.wrapping_add(1); targets[*i as usize % len]}, // TODO this behaves a bit weird when an enemy dies
             Instant | OnAttack => panic!(),
         }
     }

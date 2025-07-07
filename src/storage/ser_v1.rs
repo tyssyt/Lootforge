@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, rc::{Rc, Weak}, time::Duration};
+use std::{collections::BTreeMap, rc::{Rc, Weak}, sync::atomic::{AtomicUsize, Ordering}, time::Duration};
 
 use log::error;
 use web_time::SystemTime;
@@ -241,8 +241,12 @@ fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
             deser_u8(bytes)?;
             return Some(Weak::new());
         }
-
-        let item = Rc::new(deser_item(bytes)?);
+        
+        static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
+        
+        let mut item = deser_item(bytes)?;
+        item.id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let item = Rc::new(item);
         let weak = Rc::downgrade(&item);
         items.push(item);
         Some(weak)

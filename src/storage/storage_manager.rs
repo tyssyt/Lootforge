@@ -2,6 +2,7 @@ use crate::prelude::*;
 use crate::storage::ser::ValidatedBytes;
 use crate::{storage::ser_v1, LootforgeApp};
 
+#[apply(Enum)]
 #[derive(PartialEq)]
 pub enum LoadingState<L,D> {
     None,
@@ -19,6 +20,7 @@ pub trait Store {
     fn loading(&mut self) -> LoadingState<Vec<String>, Vec<Vec<u8>>>;
 }
 
+#[derive(Debug)]
 pub struct StorageManager {
     #[cfg(target_arch = "wasm32")]
     store: super::web::WebStore,

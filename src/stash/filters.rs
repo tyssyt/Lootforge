@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::atomic::{AtomicU32, Ordering}};
 
 use enumset::EnumSet;
@@ -6,26 +7,17 @@ use crate::item::{Item, ItemType};
 
 static ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 
+#[apply(Default)]
 pub struct ItemFilter {
     types: EnumSet<ItemType>,
+    #[default(1..=u8::MAX)]
     ranks: RangeInclusive<u8>,
     mods: BTreeMap<u16, u8>,
     excluded_item_ids: Vec<usize>,
 
+    #[default(ID_COUNTER.fetch_add(1, Ordering::Relaxed))]
     id: u32,
     mod_count: u32,
-}
-impl Default for ItemFilter {
-    fn default() -> Self {
-        Self { 
-            types: Default::default(),
-            ranks: RangeInclusive::new(1, u8::MAX),
-            mods: Default::default(),
-            excluded_item_ids: Default::default(),
-            id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-            mod_count: Default::default()
-        }
-    }
 }
 impl ItemFilter {
     pub fn new(item_type: ItemType, rank: u8, mods: impl Iterator<Item = (u16, u8)>, excluded_item_ids: impl IntoIterator<Item = usize>) -> Self {

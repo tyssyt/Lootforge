@@ -1,6 +1,7 @@
 use crate::{dungeon::dungeon::DungeonTick, equipment::wardrobe::EquipmentSet, prelude::*};
 use super::{combatant::Combatant, enemy::EnemyKind};
 
+#[derive(Debug)]
 pub struct Battle {
     pub tick: u64,
     pub fighter: Combatant,
@@ -9,7 +10,7 @@ pub struct Battle {
     pub enemies: Vec<Combatant>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[apply(UnitEnum)]
 pub enum BattleResult {
     Ongoing,
     Won,
@@ -34,6 +35,11 @@ impl Battle {
         for i in 0..((depth + 4) / 5).at_most(4) {
             self.enemies.push(Combatant::enemy(rng, EnemyKind::BigWorn, i as u8, depth));
         }
+    }
+
+    pub fn start(&mut self) {
+        self.fighter.combat_start();
+        self.enemies.iter_mut().for_each(|e| e.combat_start());
     }
 
     pub fn tick(&mut self) -> DungeonTick {

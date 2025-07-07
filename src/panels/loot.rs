@@ -8,21 +8,13 @@ use crate::stash::stash::Stash;
 use crate::stash::order::Order;
 use crate::widgets::selectable_image::SelectableImage;
 
+#[apply(Default)]
 pub struct LootPanel {
     order: Order,
     filter: ItemFilter,
     search_text: String,
+    #[default(roll_tables::ALL_MODS.values().map(|m| *m).collect())]
     shown_mods: Vec<&'static ModType>,
-}
-impl Default for LootPanel {
-    fn default() -> Self {
-        Self {
-            order: Default::default(),
-            filter: Default::default(),
-            search_text: Default::default(),
-            shown_mods: roll_tables::ALL_MODS.values().map(|m| *m).collect(),
-        }
-    }
 }
 impl LootPanel {
     pub fn show(&mut self, ui: &mut Ui, stash: &mut Stash, filter_override: Option<ItemFilter>) {

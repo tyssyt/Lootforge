@@ -1,5 +1,7 @@
-use crate::combat::skill::attack::{AttackPostHit, AttackPreHit, AttackStats};
+use crate::combat::buff::{Buff, Debuff};
+use crate::combat::skill::attack::AttackStats;
 use crate::combat::skill::skill::SkillStats;
+use crate::elemental::Element;
 use crate::prelude::*;
 use crate::combat::combatant::CombatantKind;
 
@@ -7,12 +9,44 @@ use crate::{combat::{combatant::Combatant}, elemental::Elemental};
 
 use super::skill::Skill;
 
-#[derive(Debug, Default)]
+#[apply(Default)]
 pub struct Hit {
     pub pre_res_dmg: Elemental<f32>,
     pub post_res_dmg: Elemental<f32>,
     pub penetration: Elemental<f32>,
     pub ignore_res: Elemental<bool>,
+}
+
+#[apply(Default)]
+pub struct PreHit {
+    pub damage: Elemental<f32>,
+    #[default(Elemental::from(1.))]
+    pub damage_mult: Elemental<f32>,
+    pub penetration: Elemental<f32>,
+    pub pen_conversion: Elemental<bool>,
+    pub ignore_res: Elemental<bool>,
+    pub debuffs: Vec<Debuff>,
+}
+
+#[apply(Default)]
+pub struct PostHit {
+    pub debuffs: Vec<Debuff>,
+    pub cull_threshhold: f32,
+    pub life_steal: f32,
+    pub shield_steal: f32,
+    pub self_hit: bool,
+}
+
+#[apply(Default)]
+pub struct ResponsePreHit {
+    pub block: bool,
+    pub debuffs: Vec<Debuff>,
+}
+#[apply(Default)]
+pub struct ResponsePostHit {
+    pub counter: bool,
+    pub buffs: Vec<Buff>,
+    pub debuffs: Vec<Debuff>,
 }
 
 pub fn hit(skill: &Skill, user: &mut Combatant, target: &mut Combatant) -> HitStats {
@@ -26,7 +60,7 @@ pub fn hit(skill: &Skill, user: &mut Combatant, target: &mut Combatant) -> HitSt
 
 
 fn pre_hit(skill: &Skill, user: &mut Combatant, target: &mut Combatant) -> (Option<Hit>, Option<SkillStats>) {
-    let mut attack = AttackPreHit::default();
+    let mut attack = PreHit::default();
     skill.hooks.pre_hit(&mut attack, skill, user, target);
     user.hooks.pre_hit(&mut attack, skill, user, target);
     user.buffs.apply_pre_hit(&mut attack, skill, user, target);
@@ -49,18 +83,19 @@ fn pre_hit(skill: &Skill, user: &mut Combatant, target: &mut Combatant) -> (Opti
     let pre_res_dmg = attack.damage * attack.damage_mult;
 
     let target_stats = target.stats();
-    let effective_res = target_stats.resistances - attack.penetration;
+    let penetration = penetration(attack.penetration, attack.pen_conversion);
+    let effective_res = target_stats.resistances - penetration;
     let mut post_res_dmg = mitigation(pre_res_dmg, effective_res);
     post_res_dmg.assign_cond(pre_res_dmg, attack.ignore_res);
 
     target.damage(post_res_dmg.sum());
-    let hit = Hit { pre_res_dmg, post_res_dmg, penetration: attack.penetration, ignore_res: attack.ignore_res };
+    let hit = Hit { pre_res_dmg, post_res_dmg, penetration, ignore_res: attack.ignore_res };
 
     ( Some(hit), response_stats )
 }
 
 fn post_hit(skill: &Skill, user: &mut Combatant, target: &mut Combatant, hit: Hit, response: Option<SkillStats>) -> HitStats {
-    let mut attack = AttackPostHit::default();
+    let mut attack = PostHit::default();
     skill.hooks.post_hit(&mut attack, skill, user, target, &hit);
     user.hooks.post_hit(&mut attack, skill, user, target, &hit);
     user.buffs.apply_post_hit(&mut attack, skill, user, target, &hit);
@@ -130,6 +165,18 @@ pub fn mitigation(dmg: Elemental<f32>, res: Elemental<f32>) -> Elemental<f32> {
     dmg / ((res.at_least(-99.) * 0.01) + 1.)
 }
 
+pub fn penetration(penetration: Elemental<f32>, pen_conversion: Elemental<bool>) -> Elemental<f32> {
+    let mut total_pen = penetration.clone();
+    Element::iter().for_each(|element| {
+        if *pen_conversion.get(element) {
+            total_pen = total_pen + *penetration.get(element);
+            *total_pen.get_mut(element) -= penetration.get(element);
+        }
+    });
+    total_pen
+}
+
+#[derive(Debug, Clone)]
 pub struct HitStats {
     pub target: CombatantKind,
     pub hit: Hit,

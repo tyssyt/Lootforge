@@ -5,6 +5,7 @@ mod combat;
 mod dungeon;
 mod elemental;
 mod equipment;
+mod explorer;
 mod item;
 mod mods;
 mod panels;

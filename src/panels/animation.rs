@@ -55,7 +55,8 @@ use Spritesheet::*;
 
 */
 
-#[derive(Clone, Copy, PartialEq, Debug, Default)]
+#[apply(UnitEnum)]
+#[derive(Default)]
 pub enum Animation {
     FighterAttack,
     FighterWalk,
@@ -88,7 +89,7 @@ impl AnimationData {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[apply(UnitEnum)]
 enum Spritesheet {
     FighterAttackSheet,
     FighterWalkSheet,

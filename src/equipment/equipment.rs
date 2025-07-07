@@ -1,29 +1,31 @@
 use std::array;
 
+use enum_dispatch::enum_dispatch;
+
 use crate::prelude::*;
 use crate::item::{Item, ItemRef, ItemUsers};
 
 use super::wardrobe::ItemSlot;
 
-#[derive(Debug, Default)]
+#[apply(Default)]
 pub struct FighterEquip {
     pub weapons: [ItemRef; 2],
     pub shield: ItemRef,
 
     pub common: CommonEquip<3>,
 }
-impl FighterEquip {
-    pub fn iter(&self) -> impl Iterator<Item = &ItemRef> {
+impl Equip for FighterEquip {
+    fn iter(&self) -> impl Iterator<Item = &ItemRef> {
         [&self.weapons[0], &self.weapons[1], &self.shield]
             .into_iter()
             .chain(self.common.iter())
     }
-
-    pub fn get_item(&self, slot: ItemSlot) -> (ItemRef, bool) {
+    
+    fn get_item(&self, slot: ItemSlot) -> (ItemRef, bool) {
         match slot {
             // for weapon 1, if not present check if weapon0 2 handed and set return bool to true
-            ItemSlot::FighterWeapon(0) => (self.weapons[0].clone(), false),
-            ItemSlot::FighterWeapon(1) => {
+            ItemSlot::Weapon(0) => (self.weapons[0].clone(), false),
+            ItemSlot::Weapon(1) => {
                 if self.weapons[0]
                     .upgrade()
                     .filter(|i| i.item_type.two_handed())
@@ -34,14 +36,9 @@ impl FighterEquip {
                     (self.weapons[1].clone(), false)
                 }
             }
-            ItemSlot::FighterWeapon(_) => panic!(),
+            ItemSlot::Weapon(_) => panic!(),
             ItemSlot::FighterShield => (self.shield.clone(), false),
-            ItemSlot::RangerWeapon => todo!(),
-            ItemSlot::RangerQuiver => todo!(),
-            ItemSlot::RangerSatchel => todo!(),
-            ItemSlot::MageAttackGem => todo!(),
-            ItemSlot::MageSupportGem => todo!(),
-            ItemSlot::MageStaff => todo!(),
+            ItemSlot::RangerQuiver | ItemSlot::RangerSatchel | ItemSlot::MageSupportGem | ItemSlot::MageStaff => panic!(),
             ItemSlot::Helmet => (self.common.helmet.clone(), false),
             ItemSlot::Armor => (self.common.armor.clone(), false),
             ItemSlot::Gloves => (self.common.gloves.clone(), false),
@@ -49,20 +46,34 @@ impl FighterEquip {
         }
     }
 
-    pub fn set_item(&mut self, item: Rc<Item>, slot: ItemSlot) -> Option<EquipChange> {
+    fn get_linked_item(&self, item: &Item) -> ItemRef {
+        if item.id == self.weapons[0].upgrade().map_or(0, |i| i.id) {
+            self.common.rings[0].clone()
+        } else if item.id == self.weapons[1].upgrade().map_or(0, |i| i.id) {
+            self.common.rings[1].clone()
+        } else if item.id == self.shield.upgrade().map_or(0, |i| i.id) {
+            self.common.rings[2].clone()
+        } else if item.id == self.common.rings[0].upgrade().map_or(0, |i| i.id) {
+            self.weapons[0].clone()
+        } else if item.id == self.common.rings[1].upgrade().map_or(0, |i| i.id) {
+            self.weapons[1].clone()
+        } else if item.id == self.common.rings[2].upgrade().map_or(0, |i| i.id) {
+            self.shield.clone()
+        } else {
+            ItemRef::new()
+        }
+    }
+}
+impl FighterEquip {
+    pub fn set_item(&mut self, item: ItemRef, slot: ItemSlot) -> Option<EquipChange> {
         match slot {
-            ItemSlot::FighterWeapon(i) => set_two_handed(item, &mut self.weapons, i),
+            ItemSlot::Weapon(i) => set_two_handed(item, &mut self.weapons, i),
             ItemSlot::FighterShield => Some(set_item(item, &mut self.shield)),
             ItemSlot::Helmet => Some(set_item(item, &mut self.common.helmet)),
             ItemSlot::Armor => Some(set_item(item, &mut self.common.armor)),
             ItemSlot::Gloves => Some(set_item(item, &mut self.common.gloves)),
             ItemSlot::Ring(i) => set_item_array(item, &mut self.common.rings, i),
-            ItemSlot::RangerWeapon
-            | ItemSlot::RangerQuiver
-            | ItemSlot::RangerSatchel
-            | ItemSlot::MageAttackGem
-            | ItemSlot::MageSupportGem
-            | ItemSlot::MageStaff => panic!(),
+            ItemSlot::RangerQuiver | ItemSlot::RangerSatchel | ItemSlot::MageSupportGem | ItemSlot::MageStaff => panic!(),
         }
     }    
 
@@ -109,25 +120,26 @@ impl<const RINGS: usize> CommonEquip<RINGS> {
     }
 }
 
-fn set_two_handed(item: Rc<Item>, hands: &mut [ItemRef; 2], i: usize) -> Option<EquipChange> {
-    if item.item_type.two_handed() {
-        let mut change = set_item(item, &mut hands[0]);
-        change.removed2 = hands[1].clone();
-        hands[1] = Weak::new();
-        Some(change)
-    } else if i == 1 && hands[0].upgrade().is_some_and(|w| w.item_type.two_handed()) {
-        let mut change = set_item(item, &mut hands[1]);
-        change.removed2 = hands[0].clone();
-        hands[0] = Weak::new();
-        Some(change)
-    } else {
-        set_item_array(item, hands, i)
+fn set_two_handed(item_ref: ItemRef, hands: &mut [ItemRef; 2], i: usize) -> Option<EquipChange> {
+    if let Some(item) = item_ref.upgrade() {
+        if item.item_type.two_handed() {
+            let mut change = set_item(item_ref, &mut hands[0]);
+            change.removed2 = hands[1].clone();
+            hands[1] = Weak::new();
+            return Some(change);
+        }
+        if i == 1 && hands[0].upgrade().is_some_and(|w| w.item_type.two_handed()) {
+            let mut change = set_item(item_ref, &mut hands[1]);
+            change.removed2 = hands[0].clone();
+            hands[0] = Weak::new();
+            return Some(change);
+        }
     }
+    set_item_array(item_ref, hands, i)
 }
 
-fn set_item_array(item: Rc<Item>, array: &mut [ItemRef], i: usize) -> Option<EquipChange> {
-    let item_as_weak = Rc::downgrade(&item);
-    if let Some(old) = array.iter().position(|r| r.ptr_eq(&item_as_weak)) {
+fn set_item_array(item: ItemRef, array: &mut [ItemRef], i: usize) -> Option<EquipChange> {
+    if let Some(old) = item.upgrade().and_then(|_| array.iter().position(|r| r.ptr_eq(&item))) {
         array.swap(old, i);
         None
     } else {
@@ -135,9 +147,9 @@ fn set_item_array(item: Rc<Item>, array: &mut [ItemRef], i: usize) -> Option<Equ
     }
 }
 
-fn set_item(new: Rc<Item>, old: &mut ItemRef) -> EquipChange {
+fn set_item(new: ItemRef, old: &mut ItemRef) -> EquipChange {
     let old_clone = old.clone();
-    *old = Rc::downgrade(&new);
+    *old = new.clone();
     EquipChange {
         added: new,
         removed: old_clone,
@@ -145,15 +157,16 @@ fn set_item(new: Rc<Item>, old: &mut ItemRef) -> EquipChange {
     }
 }
 
+#[apply(Default)]
 pub struct EquipChange {
-    pub added: Rc<Item>,
+    pub added: ItemRef,
     pub removed: ItemRef,
     pub removed2: ItemRef,
 }
 
 fn copy_owned(item: &ItemRef, owned: &mut Vec<Rc<Item>>) -> ItemRef {
     if let Some(item) = item.upgrade() {
-        let cloned = Rc::new( Item {            
+        let cloned = Rc::new( Item {
             id: item.id,
             item_type: item.item_type,
             targeting: item.targeting,
@@ -167,4 +180,16 @@ fn copy_owned(item: &ItemRef, owned: &mut Vec<Rc<Item>>) -> ItemRef {
     } else {
         Default::default()
     }
+}
+
+#[enum_dispatch]
+pub trait Equip {
+    fn iter(&self) -> impl Iterator<Item = &ItemRef>;
+    fn get_item(&self, slot: ItemSlot) -> (ItemRef, bool);
+    fn get_linked_item(&self, item: &Item) -> ItemRef;
+}
+
+#[enum_dispatch(Equip)]
+pub enum EquipEnum {
+    FighterEquip,
 }

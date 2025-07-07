@@ -7,22 +7,15 @@ use crate::item::Item;
 #[derive(PartialEq)]
 struct FilterCacheKey(u64, Order);
 
+#[derive(derive_more::Debug, SmartDefault)]
 pub struct Stash {
     items: Vec<Rc<Item>>,
+    #[default(1)]
     next_id: usize,
+    #[default(1)]
     max_rank: u8,
+    #[debug(skip)]
     cached_filter: Option<(FilterCacheKey, Rc<Vec<Rc<Item>>>)>, // could add a refcell so I don't need to pass mut stash around
-}
-
-impl Default for Stash {
-    fn default() -> Self {
-        Self {
-            items: Vec::default(),
-            next_id: 1,
-            max_rank: 1,
-            cached_filter: None,
-        }
-    }
 }
 
 impl Stash {

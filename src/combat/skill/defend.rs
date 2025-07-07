@@ -7,7 +7,9 @@ pub fn defend(
     skill: &mut Skill,
     user: &mut Combatant,
 ) -> DefStats {
-    def(skill, user)
+    let stats = def(skill, user);
+    skill.uses += 1;
+    stats
 }
 
 #[derive(Default)]
@@ -31,6 +33,7 @@ fn def(skill: &Skill, user: &mut Combatant) -> DefStats {
     DefStats { defender: user.kind, healed, shielded }
 }
 
+#[derive(Debug, Clone)]
 pub struct DefStats {
     pub defender: CombatantKind,
     pub healed: f32,

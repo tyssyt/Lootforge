@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 
-use strum::EnumIter;
-
+use crate::prelude::*;
 use crate::item::Item;
 
-#[derive(Default, PartialEq, EnumIter, strum::Display, Clone, Copy)]
+#[apply(UnitEnum)]
+#[derive(Default, strum::Display)]
 pub enum Order {
     #[default]
     Age,

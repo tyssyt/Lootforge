@@ -22,8 +22,11 @@ web-time = "1.1"
 log = "0.4"
 crc = "3.2"
 itertools = "0.14"
-derive_more = { version = "2.0", features = ["debug"] }
+derive_more = { version = "2.0", features = ["debug", "unwrap"] }
 enumset = "1.1"
+enum_dispatch = "0.3"
+smart-default = "0.7"
+macro_rules_attribute = "0.2"
 
 egui = { version = "0.31", default-features = false, features = ["default_fonts", "log"]}
 eframe = { version = "0.31", default-features = false, features = [

@@ -6,7 +6,7 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use super::storage_manager::{LoadingState, Store};
 
-
+#[derive(Debug)]
 pub struct NativeStore {
     thread: thread::JoinHandle<()>,
     channel: mpsc::Sender<Job>,
@@ -15,16 +15,19 @@ pub struct NativeStore {
     loading: Option<Arc<LoadJob>>,
 }
 
+#[derive(Debug)]
 struct LoadJob {
     file_names: Vec<String>,
     bytes: Mutex<Vec<Vec<u8>>>,
     done: AtomicBool,
 }
+#[derive(Debug)]
 struct SaveJob {
     file_name: String,
     bytes: Vec<u8>,
     done: AtomicBool,
 }
+#[apply(Enum)]
 enum Job {
     Load(Arc<LoadJob>),
     Save(Arc<SaveJob>),

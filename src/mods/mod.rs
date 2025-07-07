@@ -1,6 +1,6 @@
 use roll_tables::ALL_MODS;
 
-use crate::{combat::hooks::CombatHooks, prelude::*};
+use crate::{combat::hooks::CombatHooks, equipment::equipment::EquipEnum, item::Item, prelude::*};
 
 pub mod atk_mod;
 pub mod char_mod;
@@ -23,8 +23,8 @@ impl RolledMod {
         // TODO obv find a better way to do this per mod lul
         (self.mod_type().show_tooltip)(&self.mod_type(), ui, self.roll);
     }
-    pub fn register(&self, hooks: &mut CombatHooks) {
-        (self.mod_type().register)(hooks, self.roll);
+    pub fn register(&self, hooks: &mut CombatHooks, item: &Item, equip: &EquipEnum) {
+        (self.mod_type().register)(hooks, item, equip, self.roll);
     }
 }
 
@@ -43,7 +43,7 @@ pub struct ModType {
 
     pub show_tooltip: fn(&Self, &mut Ui, u16), // potentially, we can do this as a string with placeholder and style info... but lets get it decent for a good number of mods before we begin that
     // longer description for book
-    pub register: fn(hooks: &mut CombatHooks, roll: u16),
+    pub register: fn(hooks: &mut CombatHooks, item: &Item, equip: &EquipEnum, roll: u16),
 }
 
 impl PartialEq for ModType {
@@ -63,7 +63,7 @@ impl std::fmt::Debug for ModType {
 }
 
 impl ModType {
-    pub fn roll<R: Rng>(&'static self, rng: &mut R) -> RolledMod {
+    pub fn roll(&'static self, rng: &mut impl Rng) -> RolledMod {
         RolledMod {
             mod_id: self.id,
             roll: rng.random_range(self.roll_range.clone()), //TODO understand why clone is necessary

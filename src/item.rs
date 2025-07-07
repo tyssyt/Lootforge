@@ -1,6 +1,6 @@
 use enumset::EnumSetType;
 
-use crate::mods::roll_tables::{AOE_WEAPON_ROLL_TABLE, ARMOR_ROLL_TABLE, GLOVE_ROLL_TABLE, HELMET_ROLL_TABLE, RING_ROLL_TABLE, SINGLE_TARGET_WEAPON_ROLL_TABLE};
+use crate::mods::roll_tables::*;
 use crate::prelude::*;
 
 use crate::{
@@ -10,7 +10,9 @@ use crate::{
 };
 
 #[repr(u8)]
-#[derive(Debug, EnumIter, FromRepr, EnumSetType)]
+#[apply(UnitEnum)]
+#[derive(EnumSetType)]
+#[enumset(no_super_impls)]
 pub enum ItemType {
     // Fighter
     Axe = 1,
@@ -26,13 +28,13 @@ pub enum ItemType {
     // Mage
 
     // 3 Skillgems 8,9,10
-    // Staff
+    // Staff 11
 
     // Common
-    Armor = 11,
-    Helmet = 12,
-    Gloves = 13,
-    Ring = 14,
+    Armor = 12,
+    Helmet = 13,
+    Gloves = 14,
+    Ring = 15,
 }
 
 #[derive(Debug)]
@@ -49,7 +51,7 @@ pub struct Item {
 pub type ItemRef = Weak<Item>;
 
 impl ItemType {
-    pub fn roll_mod<R: Rng>(&self, rng: &mut R, mods: &Vec<RolledMod>) -> RolledMod {
+    pub fn roll_mod(&self, rng: &mut impl Rng, mods: &Vec<RolledMod>) -> RolledMod {
         use ItemType::*;
         if mods.is_empty() {            
             match *self {
@@ -66,11 +68,13 @@ impl ItemType {
         }
 
         match *self {
-            Axe | Crossbow => SINGLE_TARGET_WEAPON_ROLL_TABLE.roll_mod(rng, mods).roll(rng), // attack gem
-            Sword | Bow => AOE_WEAPON_ROLL_TABLE.roll_mod(rng, mods).roll(rng), // aoe attack gem
+            Axe => AXE_ROLL_TABLE.roll_mod(rng, mods).roll(rng), 
+            Sword => SWORD_ROLL_TABLE.roll_mod(rng, mods).roll(rng),
+            Crossbow | Bow => panic!(), // attack gems
+
             Gloves => GLOVE_ROLL_TABLE.roll_mod(rng, mods).roll(rng),
 
-            Shield | Satchel => RING_ROLL_TABLE.roll_mod(rng, mods).roll(rng), // util gem
+            Shield | Satchel => SHIELD_ROLL_TABLE.roll_mod(rng, mods).roll(rng), // util gem
             Helmet => HELMET_ROLL_TABLE.roll_mod(rng, mods).roll(rng),
 
             Armor =>  ARMOR_ROLL_TABLE.roll_mod(rng, mods).roll(rng),
@@ -150,7 +154,7 @@ impl Item {
             users: ItemUsers::default(),
         }
     }
-    pub fn random_of_type<R: Rng>(rng: &mut R, item_type: ItemType, rank: u8, forced_mods: Vec<RolledMod>) -> Self {
+    pub fn random_of_type(rng: &mut impl Rng, item_type: ItemType, rank: u8, forced_mods: Vec<RolledMod>) -> Self {
         let mut mods = Vec::with_capacity(rank as usize);
 
         mods.extend(forced_mods);
@@ -167,7 +171,7 @@ impl Item {
 
         Self::new(item_type, mods, targeting)
     }
-    pub fn random<R: Rng>(rng: &mut R, rank: u8) -> Item {
+    pub fn random(rng: &mut impl Rng, rank: u8) -> Item {
         let item_type = [ItemType::Axe, ItemType::Sword, ItemType::Shield, ItemType::Armor, ItemType::Helmet, ItemType::Gloves, ItemType::Ring].choose(rng).unwrap();
         Self::random_of_type(rng, *item_type, rank, Vec::new())
     }

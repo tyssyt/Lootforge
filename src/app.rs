@@ -15,7 +15,7 @@ use crate::{
     timekeeper::Timekeeper,
 };
 
-#[derive(Default)]
+#[derive(Debug, SmartDefault)]
 pub struct LootforgeApp {
     pub storage_manager: StorageManager,
     pub timekeeper: Timekeeper,

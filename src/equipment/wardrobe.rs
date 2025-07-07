@@ -1,15 +1,16 @@
 use std::rc::Rc;
 
-use crate::item::{Item, ItemRef, ItemType};
+use crate::prelude::*;
+use crate::{equipment::equipment::Equip, explorer::Explorer, item::{Item, ItemRef, ItemType}, mods::atk_mod};
 use super::equipment::FighterEquip;
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct Wardrobe {
     pub sets: [EquipmentSet; 9],
     pub equipped: usize,
 }
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct EquipmentSet {
     pub fighter_equip: FighterEquip,
 }
@@ -49,7 +50,7 @@ impl EquipmentSet {
     }
 }
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct OwningEquipmentSet {
     pub equipment_set: EquipmentSet,
     _owned: Vec<Rc<Item>>,
@@ -63,16 +64,14 @@ impl From<&EquipmentSet> for OwningEquipmentSet {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[apply(Enum)]
+#[derive(Copy, PartialEq)]
 pub enum ItemSlot {
-    FighterWeapon(usize),
-    FighterShield,
+    Weapon(usize),
 
-    RangerWeapon,
+    FighterShield,
     RangerQuiver,
     RangerSatchel,
-
-    MageAttackGem,
     MageSupportGem,
     MageStaff,
 
@@ -82,16 +81,20 @@ pub enum ItemSlot {
     Ring(usize),
 }
 impl ItemSlot {
-    pub fn accepts(&self, item: &Item) -> bool {
+    pub fn accepts(&self, explorer: Explorer, item: &Item) -> bool {
         let t = item.item_type;
         use ItemSlot::*;
         match *self {
-            FighterWeapon(_) => t == ItemType::Axe || t == ItemType::Sword,
-            FighterShield => t == ItemType::Shield, // TODO or Sword with light modifier
-            RangerWeapon => t == ItemType::Crossbow || t == ItemType::Bow,
+            Weapon(_) => {
+                match explorer {
+                    Explorer::Fighter => t == ItemType::Axe || t == ItemType::Sword,
+                    Explorer::Ranger => t == ItemType::Crossbow || t == ItemType::Bow,
+                    Explorer::Mage => todo!(),
+                }
+            }
+            FighterShield => t == ItemType::Shield || (t == ItemType::Axe && item.has_mod(atk_mod::LIGHT.id) > 0),
             RangerQuiver => todo!(),
             RangerSatchel => t == ItemType::Satchel,
-            MageAttackGem => todo!(),
             MageSupportGem => todo!(),
             MageStaff => todo!(),
             Helmet => t == ItemType::Helmet,
@@ -100,15 +103,20 @@ impl ItemSlot {
             Ring(_) => t == ItemType::Ring,
         }
     }
-    pub fn default_type(&self) -> Option<ItemType> {
+    pub fn default_type(&self, explorer: Explorer) -> Option<ItemType> {
         use ItemSlot::*;
         match *self {
-            FighterWeapon(_) => Some(ItemType::Axe),
+            Weapon(_) => {
+                match explorer {
+                    Explorer::Fighter => Some(ItemType::Axe),
+                    Explorer::Ranger => Some(ItemType::Bow),
+                    Explorer::Mage => todo!(),
+                }
+                
+            }
             FighterShield => Some(ItemType::Shield),
-            RangerWeapon => todo!(), // crossbow
             RangerQuiver => todo!(),
             RangerSatchel => Some(ItemType::Satchel),
-            MageAttackGem => todo!(),
             MageSupportGem => todo!(),
             MageStaff => todo!(),
             Helmet => Some(ItemType::Helmet),

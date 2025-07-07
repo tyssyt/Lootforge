@@ -8,7 +8,7 @@ use crate::item::{Item, ItemRef};
 use crate::stash::filters::ItemFilter;
 use crate::stash::stash::Stash;
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct Upgrade {
     selected_mods: Vec<usize>,
     materials: [ItemRef; 9],

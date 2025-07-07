@@ -4,7 +4,8 @@ use crate::prelude::*;
 use Element::*;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, EnumString, VariantArray, FromRepr)]
+#[apply(UnitEnum)]
+#[derive(strum::EnumString)]
 #[strum(serialize_all = "lowercase")]
 pub enum Element {
     Bleed = 1,
@@ -23,7 +24,7 @@ impl Element {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct Elemental<T> {
     pub bleed: T,
     pub fracture: T,
@@ -212,14 +213,4 @@ impl<T: Copy + ops::Add<Output = T> + Default> iter::Sum for Elemental<T> {
     }
 }
 
-impl<T: Default> Default for Elemental<T> {
-    fn default() -> Self {
-        Self { bleed: Default::default(), fracture: Default::default(), madness: Default::default(), void: Default::default() }
-    }
-}
-impl<T: Clone> Clone for Elemental<T> {
-    fn clone(&self) -> Self {
-        Self { bleed: self.bleed.clone(), fracture: self.fracture.clone(), madness: self.madness.clone(), void: self.void.clone() }
-    }
-}
 impl<T: Copy> Copy for Elemental<T> {}

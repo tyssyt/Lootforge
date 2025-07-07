@@ -9,7 +9,7 @@ use crate::{
     }
 };
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct ForgePanel {
     tab: Tab,
     base: ItemRef,
@@ -65,7 +65,8 @@ impl ForgePanel {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
+#[apply(UnitEnum)]
+#[derive(Default)]
 enum Tab {
     #[default]
     Upgrade,

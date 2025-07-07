@@ -3,7 +3,7 @@ use EnemyKind::*;
 
 use crate::{combat::skill::skill::{Skill, SkillKind}, panels::animation::Animation};
 
-#[derive(Clone, Copy, Debug)]
+#[apply(UnitEnum)]
 pub enum EnemyKind {
     BigWorn,
 }

@@ -20,30 +20,28 @@ pub static ALL_MODS: LazyLock<BTreeMap<u16, &'static ModType>> = LazyLock::new(|
 
 static ALL_ROLL_TABLES: RollTable = RollTable::new(
     &[
-        Table(&SINGLE_TARGET_WEAPON_ROLL_TABLE),
-        Table(&AOE_WEAPON_ROLL_TABLE),
+        Table(&AXE_ROLL_TABLE),
+        Table(&SWORD_ROLL_TABLE),
         Table(&GLOVE_ROLL_TABLE),
         Table(&HELMET_ROLL_TABLE),
         Table(&ARMOR_ROLL_TABLE),
+        Table(&SHIELD_ROLL_TABLE),
         Table(&RING_ROLL_TABLE),
     ],
     &[],
 );
 
 // item tables
-pub static SINGLE_TARGET_WEAPON_ROLL_TABLE: RollTable = RollTable::new(
+pub static AXE_ROLL_TABLE: RollTable = RollTable::new(
     &[
-        Table(&WEAPON_ROLL_TABLE),
-        Mod(&DEBUFF_OFF_ST, 0.8, true),
-        Mod(&DEBUFF_UTIL_ST, 0.8, true),
+        Table(&SINGLE_TARGET_WEAPON_ROLL_TABLE),
+        Mod(&LIGHT, 0.5, true),
     ],
     &[],
 );
-pub static AOE_WEAPON_ROLL_TABLE: RollTable = RollTable::new(
+pub static SWORD_ROLL_TABLE: RollTable = RollTable::new(
     &[
-        Table(&WEAPON_ROLL_TABLE),
-        Mod(&DEBUFF_OFF_AOE, 0.8, true),
-        Mod(&DEBUFF_UTIL_AOE, 0.8, true),
+        Table(&AOE_WEAPON_ROLL_TABLE),
     ],
     &[],
 );
@@ -51,6 +49,8 @@ pub static AOE_WEAPON_ROLL_TABLE: RollTable = RollTable::new(
 pub static GLOVE_ROLL_TABLE: RollTable = RollTable::new(
     &[
         Table(&OFFENSIVE_ROLL_TABLE),
+        Mod(&MULTISTRIKE_ST, 1.0, true),
+        EMod(&PEN_CONVERSION, 1.0, true),
     ],
     &[],
 );
@@ -66,21 +66,51 @@ pub static HELMET_ROLL_TABLE: RollTable = RollTable::new(
 pub static ARMOR_ROLL_TABLE: RollTable = RollTable::new(
     &[
         Table(&CHAR_ROLL_TABLE),
-        Mod(&LIFESTEAL, 1., false),
-        Mod(&SHIELDSTEAL, 1., false),
+        Mod(&LIFESTEAL, 2., false),
+        Mod(&SHIELDSTEAL, 2., false),
+        Mod(&SHIELD_START, 1., false),
+        Mod(&DEF_READY, 1., true),
+        Mod(&HEALTH_EX, 1., true),
     ],
     &[
         &[&LIFESTEAL, &SHIELDSTEAL],
     ],
 );
-pub static RING_ROLL_TABLE: RollTable = RollTable::new(
+
+pub static SHIELD_ROLL_TABLE: RollTable = RollTable::new(
     &[
         Table(&CHAR_ROLL_TABLE),
     ],
     &[],
 );
 
+pub static RING_ROLL_TABLE: RollTable = RollTable::new(
+    &[
+        Table(&CHAR_ROLL_TABLE),
+        Mod(&ATK_READY, 1., true),
+        EMod(&PENETRATION, 1., false),
+    ],
+    &[],
+);
+
 // sub tables
+static SINGLE_TARGET_WEAPON_ROLL_TABLE: RollTable = RollTable::new(
+    &[
+        Table(&WEAPON_ROLL_TABLE),
+        Mod(&DEBUFF_OFF_ST, 0.8, true),
+        Mod(&DEBUFF_UTIL_ST, 0.8, true),
+    ],
+    &[],
+);
+static AOE_WEAPON_ROLL_TABLE: RollTable = RollTable::new(
+    &[
+        Table(&WEAPON_ROLL_TABLE),
+        Mod(&DEBUFF_OFF_AOE, 0.8, true),
+        Mod(&DEBUFF_UTIL_AOE, 0.8, true),
+        Mod(&MULTISTRIKE_AOE, 0.8, true),
+    ],
+    &[],
+);
 static WEAPON_ROLL_TABLE: RollTable = RollTable::new(
     &[
         Table(&OFFENSIVE_ROLL_TABLE),
@@ -123,7 +153,7 @@ static CHAR_ROLL_TABLE: RollTable = RollTable::new(
     &[],
 );
 
-
+#[derive(Debug)]
 pub struct RollTable {
     table: &'static [RollTableElement],    
     exclusive_groups: &'static [&'static [&'static ModType]],
@@ -144,7 +174,7 @@ impl RollTable {
         }
     }
 
-    pub fn roll_mod<R: Rng>(&self, rng: &mut R, existing_mods: &Vec<RolledMod>) -> &'static ModType {
+    pub fn roll_mod(&self, rng: &mut impl Rng, existing_mods: &Vec<RolledMod>) -> &'static ModType {
         loop {
             let mod_ = self.choose_mod(rng);
             if self.check_mod_valid(mod_, existing_mods) {
@@ -160,7 +190,7 @@ impl RollTable {
             .dedup_by(|&a, &b| ptr::eq(a, b))
     }
 
-    fn choose_mod<R: Rng>(&self, rng: &mut R) -> &'static ModType {
+    fn choose_mod(&self, rng: &mut impl Rng) -> &'static ModType {
         self.table.choose_weighted(rng, |e| e.weight()).unwrap().choose_mod(rng)
     }
     fn check_mod_valid(&self, mod_: &'static ModType, existing_mods: &Vec<RolledMod>) -> bool {
@@ -174,6 +204,7 @@ impl RollTable {
     }
 }
 
+#[apply(Enum)]
 enum RollTableElement {
     Mod(&'static ModType, f32, bool),
     EMod(&'static Elemental<ModType>, f32, bool),
@@ -196,7 +227,7 @@ impl RollTableElement {
         }
     }
     
-    fn choose_mod<R: Rng>(&self, rng: &mut R) -> &'static ModType {
+    fn choose_mod(&self, rng: &mut impl Rng) -> &'static ModType {
         match self {
             Mod(mod_type, _, _) => mod_type,
             EMod(elemental, _, _) => elemental.choose(rng),

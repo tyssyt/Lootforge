@@ -1,29 +1,35 @@
 use rand_chacha::ChaCha12Rng;
 
-use crate::{combat::{battle::{Battle, BattleResult}, skill::skill::SkillStats}, equipment::wardrobe::{EquipmentSet, OwningEquipmentSet}, panels::dungeon::Background, prelude::* };
+use crate::{
+    combat::{
+        battle::{Battle, BattleResult},
+        skill::skill::SkillStats,
+    },
+    equipment::wardrobe::{EquipmentSet, OwningEquipmentSet},
+    panels::dungeon::Background,
+    prelude::*,
+};
 
 use super::reward::RewardChest;
 
+#[derive(Debug, SmartDefault)]
 pub struct DungeonData {
+    #[default(Dungeon::dummy())]
     pub cur: Dungeon,
     pub rewards: Vec<RewardChest>,
     pub auto_restart: bool,
 }
-impl Default for DungeonData {
-    fn default() -> Self {
-        Self { cur: Dungeon::dummy(), rewards: vec![], auto_restart: false }
-    }
-}
 impl DungeonData {
-    pub fn restart(&mut self, equipment: &EquipmentSet) {        
+    pub fn restart(&mut self, equipment: &EquipmentSet) {
         let mut seed = [0; 32];
         rand::rng().fill_bytes(&mut seed);
         self.cur = Dungeon::new(equipment, seed);
     }
 }
 
+#[derive(Debug)]
 pub struct Dungeon {
-    pub tick: u64, 
+    pub tick: u64,
     pub area: Area,
     pub battle: Battle,
     pub depth: u16,
@@ -31,10 +37,10 @@ pub struct Dungeon {
     pub finished: bool,
     pub starting_equip: OwningEquipmentSet,
     pub rng: ChaCha12Rng,
-    
     // run stats
 }
 
+#[derive(Debug)]
 pub struct Area {
     pub background: Background,
     // background
@@ -46,7 +52,8 @@ pub struct Area {
 impl Dungeon {
     pub const TRANSITION_TIME: u32 = 50;
 
-    pub fn dummy() -> Self { // bit of a hack to start the game with a "finished" run
+    pub fn dummy() -> Self {
+        // bit of a hack to start the game with a "finished" run
         let mut battle = Battle::new(&mut rand::rng(), &Default::default());
         battle.fighter.health = 0.;
 
@@ -77,7 +84,7 @@ impl Dungeon {
 }
 
 impl Area {
-    pub fn new<R: Rng>(rng: &mut R) -> Area {
+    pub fn new(rng: &mut impl Rng) -> Area {
         Self { background: *Background::VARIANTS.choose(rng).unwrap() }
     }
 }
@@ -107,7 +114,10 @@ impl Dungeon {
 
         if let Some(ref mut transition) = self.transition {
             *transition -= 1;
-            if *transition == 0 { self.transition = None; }
+            if *transition == 0 {
+                self.transition = None;
+                self.battle.start();
+            }
             return (None, None);
         }
 
@@ -119,17 +129,16 @@ impl Dungeon {
                 self.battle.next(&mut self.rng, self.depth);
                 self.transition = Some(Self::TRANSITION_TIME);
                 (None, None)
-            },
+            }
             BattleResult::Lost => {
                 self.finished = true;
-                (None, Some(RewardChest::from(&mut self.rng, self.depth-1)))
+                (None, Some(RewardChest::from(&mut self.rng, self.depth - 1)))
             }
         }
     }
 }
 
-
-#[derive(Default)]
+#[apply(Default)]
 pub struct DungeonTick {
     pub skills: Vec<SkillStats>,
 }

@@ -8,7 +8,7 @@ use crate::stash::filters::ItemFilter;
 use crate::stash::stash::Stash;
 
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct RerollRandom {
     selected_mods: Vec<usize>,
     material: ItemRef,

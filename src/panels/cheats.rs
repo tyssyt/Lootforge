@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{dungeon::{dungeon::DungeonData, reward::RewardChest}, item::{Item, ItemType}, prelude::*, stash::stash::Stash, timekeeper::Timekeeper};
 
-#[derive(Default)]
+#[apply(Default)]
 pub struct CheatsWindow {
     pub open: bool,
     item_adder: ItemAdder,
@@ -25,8 +25,11 @@ impl CheatsWindow {
     }
 }
 
+#[apply(Default)]
 struct ItemAdder {
+    #[default(ItemType::Axe)]
     item_type: ItemType,
+    #[default(1)]
     rank: u8,
 }
 impl ItemAdder {
@@ -48,13 +51,8 @@ impl ItemAdder {
         });
     }
 }
-impl Default for ItemAdder {
-    fn default() -> Self {
-        Self { item_type: ItemType::Axe, rank: 1 }
-    }
-}
 
-#[derive(Default)]
+#[apply(Default)]
 struct ChestAdder {
     depth: u16,
 }
@@ -69,7 +67,7 @@ impl ChestAdder {
     }
 }
 
-#[derive(Default)]
+#[apply(Default)]
 struct TimeSkipper {
 }
 impl TimeSkipper {

@@ -4,13 +4,13 @@ use crate::prelude::*;
 
 use crate::item::Item;
 
-
+#[derive(Debug)]
 pub struct RewardChest {
     pub items: Vec<Item>,
     // TODO a ref to the stats of the run
 }
 impl RewardChest {
-    pub fn from<R: Rng>(rng: &mut R, depth: u16) -> Self {
+    pub fn from(rng: &mut impl Rng, depth: u16) -> Self {
         if depth == 0 {
             return Self { items: Vec::new() };
         }

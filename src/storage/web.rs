@@ -4,7 +4,7 @@ use web_sys::{IdbDatabase, IdbOpenDbRequest, IdbRequest, IdbTransactionMode, Idb
 use web_sys::js_sys::{Array, Uint8Array};
 use crate::storage::storage_manager::{LoadingState, Store};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct WebStore {
     db: MaybeLoaded<IdbDatabase,IdbOpenDbRequest>,
 
@@ -12,7 +12,7 @@ pub struct WebStore {
     saving: Option<(String, IdbRequest)>,
     loading: Vec<(String, IdbRequest)>,
 }
-#[derive(Clone)]
+#[apply(Enum)]
 enum MaybeLoaded<R,L> {
     Ready(R),
     Loading(L),

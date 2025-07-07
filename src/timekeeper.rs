@@ -16,12 +16,14 @@ pub struct FrameInfo {
     pub dungeon_tick: Option<DungeonTick>,
 }
 
+#[derive(Debug)]
 pub struct Timekeeper {
     pub last_save_sim: SystemTime,
     last_save_wall: SystemTime,
     frames: u32,
     mode: Mode,
 }
+#[apply(Enum)]
 enum Mode {
     Regular{
         last_frame_egui: f64,

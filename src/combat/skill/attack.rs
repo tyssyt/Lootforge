@@ -1,48 +1,14 @@
-use crate::prelude::*;
+use std::{iter};
 
+use crate::prelude::*;
 use crate::combat::skill::hit::{self, HitStats};
-use crate::{combat::{buff::{Buff, Debuff}, combatant::{Combatant, CombatantKind}}, elemental::Elemental};
+use crate::combat::combatant::{Combatant, CombatantKind};
 use super::skill::Skill;
 
-#[derive(Debug)]
-pub struct AttackPreHit {
-    pub damage: Elemental<f32>,
-    pub damage_mult: Elemental<f32>,
-    pub penetration: Elemental<f32>,
-    pub ignore_res: Elemental<bool>,
-    pub debuffs: Vec<Debuff>,
-}
-impl Default for AttackPreHit {
-    fn default() -> Self {
-        Self {
-            damage: Elemental::from(0.),
-            damage_mult: Elemental::from(1.),
-            penetration: Elemental::from(0.),
-            ignore_res: Elemental::from(false),
-            debuffs: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct AttackPostHit {
-    pub debuffs: Vec<Debuff>,
-    pub cull_threshhold: f32,
-    pub life_steal: f32,
-    pub shield_steal: f32,
-    pub self_hit: bool,
-}
-
-#[derive(Default)]
-pub struct ResponsePreHit {
-    pub block: bool,
-    pub debuffs: Vec<Debuff>,
-}
-#[derive(Default)]
-pub struct ResponsePostHit {
-    pub counter: bool,
-    pub buffs: Vec<Buff>,
-    pub debuffs: Vec<Debuff>,
+#[apply(Default)]
+pub struct PreAttack {
+    #[default(1)]
+    pub hits: u8,
 }
 
 pub fn attack_single(
@@ -60,10 +26,21 @@ pub fn attack_target(
     user: &mut Combatant,
     target: &mut Combatant,
 ) -> AttackStats {
-    let hit_stats = hit::hit(skill, user, target);
+    let mut attack = PreAttack::default();
+    let targets: Vec<&Combatant> = vec![target];
+    skill.hooks.pre_attack(&mut attack, skill, user, &targets);
+    user.hooks.pre_attack(&mut attack, skill, user, &targets);
 
-    user.buffs.attacked();
-    AttackStats { attacker: user.kind, hits: vec![hit_stats] }
+    let hits = iter::repeat_n((), attack.hits as usize)
+        .map(|_| {
+            let hit_stats = hit::hit(skill, user, target);
+            user.buffs.attacked();
+            skill.uses += 1;
+            hit_stats
+        })
+        .collect();
+
+    AttackStats { attacker: user.kind, hits }
 }
 
 pub fn attack_aoe(
@@ -72,15 +49,27 @@ pub fn attack_aoe(
     _allies: &mut Vec<&mut Combatant>,
     enemies: &mut Vec<&mut Combatant>,
 ) -> AttackStats {
-    let hits = enemies.iter_mut()
-        .map(|target| {
-            hit::hit(skill, user, target)
-        }).collect();
-        
-    user.buffs.attacked();
+    let mut attack = PreAttack::default();
+    let targets: Vec<&Combatant> = enemies.iter().map(|c| c as &Combatant).collect();
+    skill.hooks.pre_attack(&mut attack, skill, user, &targets);
+    user.hooks.pre_attack(&mut attack, skill, user, &targets);
+
+    let hits = iter::repeat_n((), attack.hits as usize)
+        .flat_map(|_| {
+            let hits: Vec<_> = enemies.iter_mut()
+                .map(|target| {
+                    hit::hit(skill, user, target)
+                }).collect();        
+            user.buffs.attacked();
+            skill.uses += 1;
+            hits
+        })
+        .collect();
+
     AttackStats { attacker: user.kind, hits }
 }
 
+#[derive(Debug, Clone)]
 pub struct AttackStats {
     pub attacker: CombatantKind,
     pub hits: Vec<HitStats>,
