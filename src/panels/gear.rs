@@ -112,15 +112,15 @@ fn show_item_slot_fighter(
         ui.set_min_size(vec2(64., 64.));
 
         if let Some(item) = item.upgrade() {
-            item.show_tinted(ui, tint).on_hover_ui(|ui| item.tooltip(ui));
+            let response = item.show_tinted(ui, tint);            
+            if response.interact(Sense::click()).clicked_by(PointerButton::Secondary) {
+                equip.set_item(ItemRef::new(), slot).map(|c| changes.push(c));
+            }
+            response.on_hover_ui(|ui| item.tooltip(ui));
         } else if let Some(default) = slot.default_type(Explorer::Fighter) {
             ui.add(default.image().tint(Color32::DARK_GRAY));
         }
     });
-
-    if item.upgrade().is_some() && response.response.interact(Sense::click()).clicked_by(PointerButton::Secondary) {
-        equip.set_item(ItemRef::new(), slot).map(|c| changes.push(c));
-    }
 
     if let Some(new_item) = dropped_item {
         equip.set_item(Rc::downgrade(&new_item), slot).map(|c| changes.push(c));

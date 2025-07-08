@@ -1,14 +1,15 @@
 use crate::equipment::wardrobe::Wardrobe;
+#[cfg(debug_assertions)]
 use crate::panels::cheats::CheatsWindow;
 use crate::panels::forge::forge::ForgePanel;
 use crate::panels::header;
 use crate::panels::settings::SettingsWindow;
-use crate::storage::storage_manager::StorageManager;
+use crate::storage::storage_manager::{LoadingState, StorageManager};
 use crate::prelude::*;
 use crate::{
-    dungeon::dungeon::DungeonData,
+    dungeon::dungeon_data::DungeonData,
     panels::{
-        dungeon::DungeonPanel, gear::GearPanel, loot::LootPanel,
+        dungeon::dungeon::DungeonPanel, gear::GearPanel, loot::LootPanel,
         rewards::RewardsWindow,
     },
     stash::stash::Stash,
@@ -28,7 +29,8 @@ pub struct LootforgeApp {
     pub loot_panel: LootPanel,
     pub rewards: RewardsWindow,
     pub settings: SettingsWindow,
-    pub cheats: CheatsWindow, // TODO disable on release builds
+    #[cfg(debug_assertions)]
+    pub cheats: CheatsWindow,
 }
 
 impl LootforgeApp {
@@ -65,11 +67,15 @@ impl LootforgeApp {
 impl eframe::App for LootforgeApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if StorageManager::loading(self) {
-            ctx.request_repaint();
-            // TODO drawn loading symbol
-            return;
-        }
+        let just_finished_loading = match StorageManager::loading(self) {
+            LoadingState::None => false,
+            LoadingState::Done(_) => true,
+            LoadingState::Loading(_) => {
+                ctx.request_repaint();
+                // TODO drawn loading symbol
+                return;
+            },
+        };
 
         let mut frame_info = self.timekeeper.update(ctx);
         if let Some(target_frames) = frame_info.catch_up {
@@ -131,6 +137,7 @@ impl eframe::App for LootforgeApp {
                     &self.wardrobe,
                     &mut self.rewards,
                     frame_info,
+                    just_finished_loading,
                 );
             });
 
@@ -141,9 +148,12 @@ impl eframe::App for LootforgeApp {
         self.rewards.show(ctx, &mut self.dungeon, &mut self.stash);
         let (delete_save, cheats_opened) = self.settings.show(ctx);
 
+        #[cfg(debug_assertions)]
         if cheats_opened {
             self.cheats.open = true;
         }
+        
+        #[cfg(debug_assertions)]
         self.cheats.show(ctx, &mut self.stash, &mut self.dungeon, &mut self.timekeeper);
 
         if delete_save {

@@ -1,6 +1,8 @@
 use enumset::EnumSetType;
 
+use crate::mods::attune::AttuneKind;
 use crate::mods::roll_tables::*;
+use crate::panels::forge::forge;
 use crate::prelude::*;
 
 use crate::{
@@ -44,6 +46,7 @@ pub struct Item {
     // TODO most items don't even have targeting, but I do need something to store inherit stuff, prolly in itemtype data
     pub targeting: Option<Targeting>,
     pub mods: Vec<RolledMod>,
+    pub rerolled_mod_idx: u8,
     // TODO most items will not have users, so we could make this Option<Box> or something to reduce size
     pub users: ItemUsers,
 }
@@ -151,10 +154,14 @@ impl Item {
             item_type,
             targeting,
             mods,
+            rerolled_mod_idx: u8::MAX,
             users: ItemUsers::default(),
         }
     }
-    pub fn random_of_type(rng: &mut impl Rng, item_type: ItemType, rank: u8, forced_mods: Vec<RolledMod>) -> Self {
+    pub fn random(rng: &mut impl Rng, item_type: ItemType, rank: u8) -> Self {
+        Self::random_with_mods(rng, item_type, rank, Vec::new())
+    }
+    pub fn random_with_mods(rng: &mut impl Rng, item_type: ItemType, rank: u8, forced_mods: Vec<RolledMod>) -> Self {
         let mut mods = Vec::with_capacity(rank as usize);
 
         mods.extend(forced_mods);
@@ -171,21 +178,40 @@ impl Item {
 
         Self::new(item_type, mods, targeting)
     }
-    pub fn random(rng: &mut impl Rng, rank: u8) -> Item {
-        let item_type = [ItemType::Axe, ItemType::Sword, ItemType::Shield, ItemType::Armor, ItemType::Helmet, ItemType::Gloves, ItemType::Ring].choose(rng).unwrap();
-        Self::random_of_type(rng, *item_type, rank, Vec::new())
-    }
 
     pub fn rank(&self) -> u8 {
         self.mods.len().try_into().expect("item has more then 255 mods, WTF")
     }
 
-    pub fn has_mod(&self, mod_id: u16) -> u8 {
+    pub fn mod_count(&self, mod_id: u16) -> u8 {
         self.mods.iter().filter(|m| m.mod_id == mod_id).count() as u8
     }
 
+    pub fn has_mod(&self, mod_id: u16) -> bool {
+        self.mod_count(mod_id) > 0
+    }
+
     pub fn has_all_mods<'a>(&self, mut mods: impl Iterator<Item = (u16, u8)>) -> bool {
-        mods.all(|(wanted, count)| self.has_mod(wanted) >= count)
+        mods.all(|(wanted, count)| self.mod_count(wanted) >= count)
+    }
+
+    pub fn rerolled_mod_idx(&self) ->  Option<u8> {
+        if self.rerolled_mod_idx == u8::MAX {
+            None
+        } else {
+            Some(self.rerolled_mod_idx)
+        }
+    }
+
+    pub fn attunements(&self) -> Vec<(AttuneKind, usize)> {
+        self.mods.iter()
+            .filter_map(|m| m.mod_type().attunement())
+            .map(|(group, idx )| (group.kind, idx))
+            .into_group_map()
+            .iter()
+            .filter(|(_, idx)| idx.iter().all_equal())
+            .map(|(kind, idx)| (*kind, idx[0]))
+            .collect()
     }
 
     pub fn show(&self, ui: &mut Ui) -> Response {
@@ -260,10 +286,21 @@ impl Item {
             ui.separator();
         }
 
-        for modifier in &self.mods {
-            modifier.show_tooltip(ui);
+        for (i, modifier) in self.mods.iter().enumerate() {
+            ui.horizontal(|ui| {
+                if self.rerolled_mod_idx == i as u8 {
+                    ui.add(forge::Tab::RerollTarget.image().fit_to_exact_size(vec2(16., 16.)));
+                }
+                modifier.show_tooltip(ui);
+            });
         }
     }
 
     // we could have a fun namebuilder, like *pre* *item* of *pre* *suf* & *pre* *suf*
+}
+impl std::ops::Index<u8> for Item {
+    type Output = RolledMod;
+    fn index<'a>(&'a self, i: u8) -> &'a RolledMod {
+        &self.mods[i as usize]
+    }
 }

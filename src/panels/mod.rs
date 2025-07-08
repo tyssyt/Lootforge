@@ -1,6 +1,8 @@
 pub mod animation;
 pub mod rewards;
-pub mod cheats; // TODO disable on release builds
+
+#[cfg(debug_assertions)]
+pub mod cheats;
 pub mod dungeon;
 pub mod forge;
 pub mod gear;

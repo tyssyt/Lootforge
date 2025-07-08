@@ -1,8 +1,9 @@
 use roll_tables::ALL_MODS;
 
-use crate::{combat::hooks::CombatHooks, equipment::equipment::EquipEnum, item::Item, prelude::*};
+use crate::{combat::hooks::CombatHooks, equipment::equipment::EquipEnum, item::Item, mods::attune::AttuneGroup, panels::forge::forge, prelude::*};
 
 pub mod atk_mod;
+pub mod attune;
 pub mod char_mod;
 pub mod def_mod;
 pub mod roll_tables;
@@ -20,8 +21,11 @@ impl RolledMod {
     pub fn show_tooltip(&self, ui: &mut Ui) {
         // TODO change default color to a slightly brighter grey
         // TODO check how poe and d3/4 show mods
-        // TODO obv find a better way to do this per mod lul
-        (self.mod_type().show_tooltip)(&self.mod_type(), ui, self.roll);
+        let mod_type = self.mod_type();
+        if mod_type.attune.is_some() {
+            ui.add(forge::Tab::Attune.image().fit_to_exact_size(vec2(16., 16.)));
+        }
+        (mod_type.show_tooltip)(&self.mod_type(), ui, self.roll);
     }
     pub fn register(&self, hooks: &mut CombatHooks, item: &Item, equip: &EquipEnum) {
         (self.mod_type().register)(hooks, item, equip, self.roll);
@@ -40,6 +44,7 @@ pub struct ModType {
     pub id: u16,
     pub prefix_name: &'static str,
     pub roll_range: RangeInclusive<u16>,
+    pub attune: Option<&'static AttuneGroup>,
 
     pub show_tooltip: fn(&Self, &mut Ui, u16), // potentially, we can do this as a string with placeholder and style info... but lets get it decent for a good number of mods before we begin that
     // longer description for book
@@ -68,5 +73,10 @@ impl ModType {
             mod_id: self.id,
             roll: rng.random_range(self.roll_range.clone()), //TODO understand why clone is necessary
         }
+    }
+
+    pub fn attunement(&'static self) -> Option<(&'static AttuneGroup, usize)> {
+        // TODO this should be pre computable at compile time, but it's weird because then mod and group depend on each other
+        self.attune.map(|group| (group, group.idx(self).unwrap()) )
     }
 }

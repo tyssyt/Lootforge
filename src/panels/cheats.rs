@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{dungeon::{dungeon::DungeonData, reward::RewardChest}, item::{Item, ItemType}, prelude::*, stash::stash::Stash, timekeeper::Timekeeper};
+use crate::{dungeon::{dungeon_data::DungeonData, reward::RewardChest}, item::{Item, ItemType}, prelude::*, stash::stash::Stash, timekeeper::Timekeeper};
 
 #[apply(Default)]
 pub struct CheatsWindow {
@@ -46,7 +46,7 @@ impl ItemAdder {
             ui.add(DragValue::new(&mut self.rank).range(1..=10));
 
             if ui.button("Add Item").clicked() {
-                stash.add(Item::random_of_type(&mut rand::rng(), self.item_type, self.rank, Vec::new()));
+                stash.add(Item::random(&mut rand::rng(), self.item_type, self.rank));
             }
         });
     }
@@ -59,7 +59,7 @@ struct ChestAdder {
 impl ChestAdder {
     fn show(&mut self, dungeon: &mut DungeonData, ui: &mut Ui) {
         ui.horizontal_wrapped(|ui| {
-            ui.add(DragValue::new(&mut self.depth).range(5..=50));
+            ui.add(DragValue::new(&mut self.depth).range(1..=100));
             if ui.button("Add Chest").clicked() {
                 dungeon.rewards.push(RewardChest::from(&mut rand::rng(), self.depth));
             }

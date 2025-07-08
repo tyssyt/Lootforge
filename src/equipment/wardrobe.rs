@@ -92,7 +92,7 @@ impl ItemSlot {
                     Explorer::Mage => todo!(),
                 }
             }
-            FighterShield => t == ItemType::Shield || (t == ItemType::Axe && item.has_mod(atk_mod::LIGHT.id) > 0),
+            FighterShield => t == ItemType::Shield || (t == ItemType::Axe && item.has_mod(atk_mod::LIGHT.id)),
             RangerQuiver => todo!(),
             RangerSatchel => t == ItemType::Satchel,
             MageSupportGem => todo!(),

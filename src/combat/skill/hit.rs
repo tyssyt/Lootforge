@@ -149,20 +149,22 @@ fn post_hit(skill: &Skill, user: &mut Combatant, target: &mut Combatant, hit: Hi
 
     }
 
-    // multiattack happens after this
-
     response.map(|r| responses.insert(0, r));
     HitStats { target: target.kind, hit, responses }
 }
 
-pub fn effective_health<F: Copy + ops::Mul<Output=F> + ops::Add<Output=F> + NumExt + From<f32>>(health: F, res: F) -> F {
-    // TODO check if this is correct
-    health * ((res.at_least(F::from(-99.)) * F::from(0.01)) + F::from(1.))
+pub fn effective_health<F: Copy + ops::Mul<f32, Output=F> + ops::Mul<Output=F> + ops::Div<Output=F> + ops::Sub<Output=F> + NumExt + From<f32>>(health: F, res: F) -> F {
+    let factor = F::from(1.) / damage_reduced_by(res);
+    health * factor
 }
 
 pub fn mitigation(dmg: Elemental<f32>, res: Elemental<f32>) -> Elemental<f32> {
-    // TODO check if this is correct
-    dmg / ((res.at_least(-99.) * 0.01) + 1.)
+    dmg * damage_reduced_by(res)
+}
+
+fn damage_reduced_by<F: Copy + ops::Mul<f32, Output=F> + ops::Sub<Output=F> + NumExt + From<f32>>(res: F) -> F {
+    let mitigation = (res * 0.01).at_most(F::from(0.75));
+    F::from(1.) - mitigation
 }
 
 pub fn penetration(penetration: Elemental<f32>, pen_conversion: Elemental<bool>) -> Elemental<f32> {

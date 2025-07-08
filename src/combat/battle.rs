@@ -1,5 +1,5 @@
-use crate::{dungeon::dungeon::DungeonTick, equipment::wardrobe::EquipmentSet, prelude::*};
-use super::{combatant::Combatant, enemy::EnemyKind};
+use crate::{combat::enemy::EnemyKind, dungeon::{dungeon_data::DungeonTick}, equipment::wardrobe::EquipmentSet, prelude::*};
+use super::{combatant::Combatant};
 
 #[derive(Debug)]
 pub struct Battle {
@@ -18,23 +18,25 @@ pub enum BattleResult {
 }
 
 impl Battle {
-    pub fn new(rng: &mut impl Rng, equip: &EquipmentSet) -> Self {
+    pub fn new(equip: &EquipmentSet, enemies: Vec<EnemyKind>, rng: &mut impl Rng) -> Self {
         Self {
             tick: 0,
             fighter: Combatant::fighter(&equip.fighter_equip),
-            enemies: vec![
-                Combatant::enemy(rng, EnemyKind::BigWorn, 0, 1),
-            ],
+            enemies: Self::enemies(enemies, 1, rng),
         }
     }
 
-    pub fn next(&mut self, rng: &mut impl Rng, depth: u16) {
+    pub fn next(&mut self, enemies: Vec<EnemyKind>, depth: u16, rng: &mut impl Rng) {
         self.tick = 0;
         self.fighter.transfer();
-        self.enemies.clear();
-        for i in 0..((depth + 4) / 5).at_most(4) {
-            self.enemies.push(Combatant::enemy(rng, EnemyKind::BigWorn, i as u8, depth));
-        }
+        self.enemies = Self::enemies(enemies, depth, rng);
+    }
+
+    fn enemies(enemies: Vec<EnemyKind>, depth: u16, rng: &mut impl Rng) -> Vec<Combatant> {
+        enemies.into_iter()
+            .enumerate()
+            .map(|(i, kind)| Combatant::enemy(kind, i as u8, depth, rng))
+            .collect()
     }
 
     pub fn start(&mut self) {

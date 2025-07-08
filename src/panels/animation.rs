@@ -55,54 +55,126 @@ use Spritesheet::*;
 
 */
 
+#[derive(Debug, Clone)]
+pub struct AnimationPlayer {
+    data: &'static AnimationData,
+    frame: usize,
+}
+impl AnimationPlayer {
+    pub fn new(animation: Animation) -> Self {
+        Self { data: animation.deref_static(), frame: 0 }
+    }
+    pub fn frame(&mut self) -> Image<'_> {
+        self.data.frame(self.frame)
+    }
+    pub fn next_frame(&mut self) -> bool {
+        if self.frame >= self.data.len -1 {
+            false
+        } else {
+            self.frame += 1;
+            true
+        }
+    }
+    pub fn sprite_size(&self) -> Vec2 {
+        self.data.sprite_size()
+    }
+}
+
 #[apply(UnitEnum)]
 #[derive(Default)]
 pub enum Animation {
     FighterAttack,
+    FighterIdle,
     FighterWalk,
+
     BigWormIdle,
     BigWornAttack,
+    BatIdle,
+    BatAttack,
+    MinotaurIdle,
+    MinotaurAttack,
+    OrcIdle,
+    OrcAttack,
+    SkeletonIdle,
+    SkeletonAttack,
+    SpiderIdle,
+    SpiderAttack,
+    BigSpiderIdle,
+    BigSpiderAttack,
+
     #[default]
     SlimeProj,
 }
 impl Deref for Animation {
     type Target = AnimationData;
     fn deref(&self) -> &'static Self::Target {
-        match *self {
+        self.deref_static()
+    }
+}
+impl Animation {
+    pub fn deref_static(self) -> &'static AnimationData {
+        match self {
             FighterAttack => &AnimationData { sheet: FighterAttackSheet, len: 6, frames: &[(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5)]},
+            FighterIdle   => &AnimationData { sheet: FighterWalkSheet, len: 7, frames: &[(0, 3), (0, 3), (0, 3), (0, 6), (0, 5), (0, 5), (0, 6)]},
             FighterWalk   => &AnimationData { sheet: FighterWalkSheet, len: 8, frames: &[(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8)]},
-            BigWormIdle   => &AnimationData { sheet: BigWorn, len: 6, frames: &[(0, 0), (0, 1), (0, 2), (0, 3), (0, 2), (0, 1)] },
-            BigWornAttack => &AnimationData { sheet: BigWorn, len: 2, frames: &[(0, 4), (0, 5)] },
-            SlimeProj     => &AnimationData { sheet: SlimeProjectile, len: 4, frames: &[(0, 1), (0, 2), (0, 3), (0, 4)] },
+
+            
+            BatIdle         => &AnimationData { sheet: Bat, len: 4, frames: &[(0, 0), (0, 1), (0, 2), (0, 1)] },
+            BatAttack       => &AnimationData { sheet: Bat, len: 5, frames: &[(0, 2), (0, 3), (0, 4), (0, 4), (0, 5)] },
+            BigWormIdle     => &AnimationData { sheet: BigWorn, len: 6, frames: &[(0, 0), (0, 0), (0, 1), (0, 2), (0, 2), (0, 1)] },
+            BigWornAttack   => &AnimationData { sheet: BigWorn, len: 2, frames: &[(0, 4), (0, 5)] },
+            MinotaurIdle    => &AnimationData { sheet: Minotaur, len: 5, frames: &[(0, 0), (0, 0), (0, 0), (0, 1), (0, 1)] },
+            MinotaurAttack  => &AnimationData { sheet: Minotaur, len: 5, frames: &[(0, 2), (0, 3), (0, 4), (0, 5), (0, 6)] },
+            OrcIdle         => &AnimationData { sheet: Orc, len: 6, frames: &[(0, 4), (0, 4), (0, 4), (0, 4), (0, 3), (0, 3)] },
+            OrcAttack       => &AnimationData { sheet: Orc, len: 6, frames: &[(0, 5), (0, 0), (0, 1), (0, 2), (0, 3), (0, 4)] },
+            SkeletonIdle    => &AnimationData { sheet: Skeleton, len: 7, frames: &[(0, 0), (0, 0), (0, 0), (0, 1), (0, 2), (0, 2), (0, 1)] },
+            SkeletonAttack  => &AnimationData { sheet: Skeleton, len: 7, frames: &[(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7)] },
+            SpiderIdle      => &AnimationData { sheet: Spider, len: 5, frames: &[(0, 2), (0, 4), (0, 5), (0, 3), (0, 3)] },
+            SpiderAttack    => &AnimationData { sheet: Spider, len: 8, frames: &[(0, 2), (0, 3), (0, 4), (0, 3), (0, 5), (0, 2), (0, 1), (0, 0)] },
+            BigSpiderIdle   => &AnimationData { sheet: BigSpider, len: 5, frames: &[(0, 0), (0, 0), (0, 0), (0, 4), (0, 6)] },
+            BigSpiderAttack => &AnimationData { sheet: BigSpider, len: 4, frames: &[(0, 0), (0, 1), (0, 2), (0, 3)] },
+            
+            SlimeProj => &AnimationData { sheet: SlimeProjectile, len: 4, frames: &[(0, 1), (0, 2), (0, 3), (0, 4)] },
         }
     }
 }
 
+#[derive(derive_more::Debug, Clone)]
 pub struct AnimationData {
     sheet: Spritesheet,
     pub len: usize,
+
+    #[debug(skip)]
     frames: &'static [(u16, u16)],
 }
 impl AnimationData {
-    pub fn frame(&self, n: usize) -> Image<'_> {
+    pub fn frame(&self, n: usize) -> Image<'static> {
         self.sheet.get_sprite(self.frames[n])
+    }
+    pub fn sprite_size(&self) -> Vec2 {
+        self.sheet.sprite_size()
     }
 }
 
 #[apply(UnitEnum)]
-enum Spritesheet {
+pub enum Spritesheet {
     FighterAttackSheet,
     FighterWalkSheet,
+    Bat,
     BigWorn,
+    Minotaur,
+    Orc,
+    Skeleton,
+    Spider,
+    BigSpider,
     SlimeProjectile,
 }
-// TODO consider fucking magic macro instead, this is like barely okay but already annoying
 impl Spritesheet {
-    fn get_sprite(&self, pos: (u16, u16)) -> Image<'_> {
+    pub fn get_sprite(&self, pos: (u16, u16)) -> Image<'static> {
         self.get_sprite_2(pos.0, pos.1)
     }
 
-    fn get_sprite_2(&self, row: u16, col: u16) -> Image<'_> {
+    pub fn get_sprite_2(&self, row: u16, col: u16) -> Image<'static> {
         Image::new(self.image())
             .maintain_aspect_ratio(false)
             .fit_to_exact_size(self.sprite_size())
@@ -112,11 +184,17 @@ impl Spritesheet {
             ))
     }
 
-    fn image(&self) -> ImageSource<'_> {
+    fn image(&self) -> ImageSource<'static> {
         match *self {
             FighterAttackSheet => include_image!("../../assets/explorers/fighter_attack.png"),
             FighterWalkSheet   => include_image!("../../assets/explorers/fighter_walk.png"),
+            Bat                => include_image!("../../assets/enemies/bat.png"),
             BigWorn            => include_image!("../../assets/enemies/big_worm.png"),
+            Minotaur           => include_image!("../../assets/enemies/minotaur.png"),
+            Orc                => include_image!("../../assets/enemies/orc.png"),
+            Skeleton           => include_image!("../../assets/enemies/skeleton.png"),
+            Spider             => include_image!("../../assets/enemies/spider.png"),
+            BigSpider          => include_image!("../../assets/enemies/big_spider.png"),
             SlimeProjectile    => include_image!("../../assets/enemies/slime-projectile.png"),
         }
     }
@@ -124,7 +202,13 @@ impl Spritesheet {
         match *self {
             FighterAttackSheet => vec2(128., 64.),
             FighterWalkSheet   => vec2(64., 64.),
+            Bat                => vec2(32., 32.),
             BigWorn            => vec2(64., 64.),
+            Minotaur           => vec2(74., 64.),
+            Orc                => vec2(128., 68.),
+            Skeleton           => vec2(64., 64.),
+            Spider             => vec2(32., 32.),
+            BigSpider          => vec2(64., 64.),
             SlimeProjectile    => vec2(16., 16.),
         }
     }
@@ -133,7 +217,13 @@ impl Spritesheet {
         match *self {
             FighterAttackSheet => 1,
             FighterWalkSheet   => 1,
+            Bat                => 1,
             BigWorn            => 1,
+            Minotaur           => 1,
+            Orc                => 1,
+            Skeleton           => 1,
+            Spider             => 1,
+            BigSpider          => 1,
             SlimeProjectile    => 1,
         }
     }
@@ -141,7 +231,13 @@ impl Spritesheet {
         match *self {
             FighterAttackSheet => 6,
             FighterWalkSheet   => 9,
+            Bat                => 6,
             BigWorn            => 6,
+            Minotaur           => 7,
+            Orc                => 6,
+            Skeleton           => 8,
+            Spider             => 6,
+            BigSpider          => 10,
             SlimeProjectile    => 4,
         }
     }

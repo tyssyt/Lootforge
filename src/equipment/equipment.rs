@@ -171,6 +171,7 @@ fn copy_owned(item: &ItemRef, owned: &mut Vec<Rc<Item>>) -> ItemRef {
             item_type: item.item_type,
             targeting: item.targeting,
             mods: item.mods.clone(),
+            rerolled_mod_idx: item.rerolled_mod_idx,
             users: ItemUsers::default(),
         });
 

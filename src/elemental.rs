@@ -32,8 +32,8 @@ pub struct Elemental<T> {
     pub void: T,
 }
 
-impl<T: Copy> Elemental<T> {
-    pub fn from(value: T) -> Self {
+impl<T: Copy> From<T> for Elemental<T> {
+    fn from(value: T) -> Self {
         Self {
             bleed: value,
             fracture: value,
@@ -41,6 +41,8 @@ impl<T: Copy> Elemental<T> {
             void: value,
         }
     }
+}
+impl<T: Copy> Elemental<T> {
     pub fn with(&self, value: T, element: Element) -> Self {
         let mut clone = self.clone();
         clone.set(value, element);

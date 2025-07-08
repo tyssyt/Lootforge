@@ -1,8 +1,27 @@
-use std::{collections::BTreeMap, rc::{Rc, Weak}, sync::atomic::{AtomicUsize, Ordering}, time::Duration};
+use std::{
+    collections::BTreeMap,
+    rc::{Rc, Weak},
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+    u8,
+};
 
+use crate::{
+    combat::skill::targeting::Targeting,
+    dungeon::{dungeon::Dungeon, dungeon_data::DungeonData, floor::Floor, reward::RewardChest},
+    elemental::Element,
+    equipment::{
+        equipment::{CommonEquip, FighterEquip},
+        wardrobe::{EquipmentSet, Wardrobe},
+    },
+    item::{Item, ItemRef, ItemType, ItemUsers},
+    mods::RolledMod,
+    stash::stash::Stash,
+    timekeeper::Timekeeper,
+    LootforgeApp,
+};
 use log::error;
 use web_time::SystemTime;
-use crate::{combat::skill::targeting::Targeting, dungeon::{dungeon::{Dungeon, DungeonData}, reward::RewardChest}, elemental::Element, equipment::{equipment::{CommonEquip, FighterEquip}, wardrobe::{EquipmentSet, Wardrobe}}, item::{Item, ItemRef, ItemType, ItemUsers}, mods::RolledMod, stash::stash::Stash, timekeeper::Timekeeper, LootforgeApp};
 
 use super::{ser, storage_manager::StorageManager};
 
@@ -12,9 +31,9 @@ pub fn validate(bytes: &[u8]) -> Option<u64> {
     if bytes.len() < 1000 {
         return None;
     }
-    let check_sum = CRC.checksum(&bytes[..bytes.len()-4]).to_le_bytes();
-    if &bytes[bytes.len()-4..] != check_sum {
-        return None
+    let check_sum = CRC.checksum(&bytes[..bytes.len() - 4]).to_le_bytes();
+    if &bytes[bytes.len() - 4..] != check_sum {
+        return None;
     }
 
     Some(u64::from_le_bytes(bytes[9..17].try_into().ok()?))
@@ -33,7 +52,7 @@ pub fn ser(app: &LootforgeApp, epoch_millis: u64) -> Vec<u8> {
     ser_dungeon_data(&mut bytes, &app.dungeon);
 
     let check_sum = CRC.checksum(&bytes).to_le_bytes();
-    bytes.extend_from_slice(&check_sum);    
+    bytes.extend_from_slice(&check_sum);
     bytes
 }
 
@@ -42,7 +61,7 @@ pub fn deser(storage_manager: StorageManager, mut bytes: &[u8]) -> Option<Lootfo
     let mut timekeeper = Timekeeper::default();
     timekeeper.last_save_sim = SystemTime::UNIX_EPOCH + Duration::from_millis(ts);
 
-    bytes = &bytes[17..bytes.len()-4];
+    bytes = &bytes[17..bytes.len() - 4];
 
     let stash = deser_stash(&mut bytes)?;
     let wardrobe = deser_wardrobe(&mut bytes, &stash)?;
@@ -65,7 +84,7 @@ fn ser_stash(bytes: &mut Vec<u8>, stash: &Stash) -> BTreeMap<usize, u32> {
     for (i, item) in stash.items().iter().enumerate() {
         ser_item(bytes, item.as_ref());
         if item.users.any_wardrobe.get() {
-            items.insert(item.id, (i+1) as u32);
+            items.insert(item.id, (i + 1) as u32);
         }
     }
     items
@@ -75,7 +94,7 @@ fn deser_stash(bytes: &mut &[u8]) -> Option<Stash> {
     let len = deser_u32(bytes)?;
     for _ in 0..len {
         stash.add(deser_item(bytes)?);
-    }    
+    }
     Some(stash)
 }
 
@@ -118,15 +137,17 @@ fn deser_wardrobe(bytes: &mut &[u8], stash: &Stash) -> Option<Wardrobe> {
     ];
 
     sets.iter().enumerate().for_each(|(i, set)| {
-        set.iter().for_each(|item| {item.upgrade().map(|item| item.users.add_wardrobe(i));});
+        set.iter().for_each(|item| {
+            item.upgrade().map(|item| item.users.add_wardrobe(i));
+        });
     });
 
-    let mut wardrobe = Wardrobe {sets, equipped: (equipped+1) % 9};
+    let mut wardrobe = Wardrobe { sets, equipped: (equipped + 1) % 9 };
     wardrobe.set_equipped(equipped); // TODO this sets the equipped flag, prolly can do that a bit nicer
-    Some(wardrobe)    
+    Some(wardrobe)
 }
 
-fn ser_equipment_set<F>(bytes: &mut Vec<u8>, set: &EquipmentSet, ser_slot: F) where F: Fn(&mut Vec<u8>, &ItemRef)  {
+fn ser_equipment_set(bytes: &mut Vec<u8>, set: &EquipmentSet, ser_slot: impl Fn(&mut Vec<u8>, &ItemRef)) {
     ser_slot(bytes, &set.fighter_equip.weapons[0]);
     ser_slot(bytes, &set.fighter_equip.weapons[1]);
     ser_slot(bytes, &set.fighter_equip.shield);
@@ -136,7 +157,7 @@ fn ser_equipment_set<F>(bytes: &mut Vec<u8>, set: &EquipmentSet, ser_slot: F) wh
     ser_slot(bytes, &set.fighter_equip.common.rings[0]);
     ser_slot(bytes, &set.fighter_equip.common.rings[1]);
     ser_slot(bytes, &set.fighter_equip.common.rings[2]);
-    
+
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
@@ -146,7 +167,7 @@ fn ser_equipment_set<F>(bytes: &mut Vec<u8>, set: &EquipmentSet, ser_slot: F) wh
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
-    
+
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
@@ -157,8 +178,8 @@ fn ser_equipment_set<F>(bytes: &mut Vec<u8>, set: &EquipmentSet, ser_slot: F) wh
     ser_u32(bytes, 0);
     ser_u32(bytes, 0);
 }
-fn deser_equipment_set<F>(bytes: &mut &[u8], mut deser_slot:F) -> Option<EquipmentSet> where F: FnMut(&mut &[u8]) -> Option<ItemRef> {
-    let set = EquipmentSet{
+fn deser_equipment_set(bytes: &mut &[u8], mut deser_slot: impl FnMut(&mut &[u8]) -> Option<ItemRef>) -> Option<EquipmentSet> {
+    let set = EquipmentSet {
         fighter_equip: FighterEquip {
             weapons: [deser_slot(bytes)?, deser_slot(bytes)?],
             shield: deser_slot(bytes)?,
@@ -169,7 +190,7 @@ fn deser_equipment_set<F>(bytes: &mut &[u8], mut deser_slot:F) -> Option<Equipme
                 rings: [deser_slot(bytes)?, deser_slot(bytes)?, deser_slot(bytes)?],
             },
         },
-    };        
+    };
     for _ in 0..18 {
         deser_u32(bytes)?;
     }
@@ -179,20 +200,20 @@ fn deser_equipment_set<F>(bytes: &mut &[u8], mut deser_slot:F) -> Option<Equipme
 fn ser_rewards(bytes: &mut Vec<u8>, rewards: &Vec<RewardChest>) {
     ser_u32(bytes, rewards.len() as u32);
     for chests in rewards {
+        ser_u16(bytes, chests.depth);
         ser_u16(bytes, chests.items.len() as u16);
         for item in &chests.items {
             ser_item(bytes, item);
         }
     }
 }
-fn deser_rewards(bytes: &mut &[u8]) -> Option<Vec<RewardChest>> {
+fn deser_rewards(bytes: &mut &[u8]) -> Option<Vec<RewardChest>> {    
     let len = deser_u32(bytes)?;
     (0..len).map(|_| {
+        let depth = deser_u16(bytes)?;
         let len = deser_u16(bytes)?;
-        let items = (0..len).map(|_| {    
-            deser_item(bytes)
-        }).collect::<Option<_>>()?;
-        Some(RewardChest { items })
+        let items = (0..len).map(|_| deser_item(bytes)).collect::<Option<_>>()?;
+        Some(RewardChest { depth, items })
     }).collect()
 }
 
@@ -202,7 +223,7 @@ fn ser_dungeon_data(bytes: &mut Vec<u8>, dungeon_data: &DungeonData) {
     ser_u8(bytes, dungeon_data.auto_restart as u8);
 }
 fn deser_dungeon_data(bytes: &mut &[u8]) -> Option<DungeonData> {
-    Some( DungeonData {
+    Some(DungeonData {
         cur: deser_dungeon(bytes)?,
         rewards: deser_rewards(bytes)?,
         auto_restart: deser_u8(bytes)? != 0,
@@ -227,7 +248,7 @@ fn ser_dungeon(bytes: &mut Vec<u8>, dungeon: &Dungeon) {
     ser_equipment_set(bytes, &dungeon.starting_equip.equipment_set, ser_dungeon_item);
     ser_u64(bytes, dungeon.tick);
     bytes.extend_from_slice(&dungeon.rng.get_seed());
-    ser_u32(bytes, dungeon_checksum(dungeon))
+    ser_u32(bytes, dungeon_checksum(&dungeon.floor))
 }
 fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
     let finished = deser_u8(bytes)? != 0;
@@ -241,9 +262,9 @@ fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
             deser_u8(bytes)?;
             return Some(Weak::new());
         }
-        
+
         static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
-        
+
         let mut item = deser_item(bytes)?;
         item.id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
         let item = Rc::new(item);
@@ -253,7 +274,7 @@ fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
     };
 
     let starting_equip = deser_equipment_set(bytes, deser_dungeon_item)?;
-    let tick = deser_u64(bytes)?; 
+    let tick = deser_u64(bytes)?;
     let seed = deser_bytes(bytes)?;
 
     let mut dungeon = Dungeon::new(&starting_equip, seed);
@@ -263,7 +284,7 @@ fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
     }
 
     let checksum = deser_u32(bytes)?;
-    if checksum != dungeon_checksum(&dungeon) {
+    if checksum != dungeon_checksum(&dungeon.floor) {
         error!("Deserialized Dungeon has diverging checksum after simulating {} ticks", tick);
         return None;
     }
@@ -271,14 +292,14 @@ fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
     Some(dungeon)
 }
 
-fn dungeon_checksum(dungeon: &Dungeon) -> u32 {
-    let mut checksum = Vec::new(); 
+fn dungeon_checksum(level: &Floor) -> u32 {
+    let mut checksum = Vec::new();
 
-    ser_u16(&mut checksum, dungeon.depth);
-    ser_u32(&mut checksum, dungeon.transition.unwrap_or(0));
-    ser_u64(&mut checksum, dungeon.battle.tick);
+    ser_u16(&mut checksum, level.depth);
+    ser_u32(&mut checksum, level.transition.unwrap_or(0));
+    ser_u64(&mut checksum, level.battle.tick);
 
-    for combatant in [&dungeon.battle.fighter, &dungeon.battle.fighter, &dungeon.battle.fighter].into_iter().chain(dungeon.battle.enemies.iter()) {
+    for combatant in [&level.battle.fighter, &level.battle.fighter, &level.battle.fighter].into_iter().chain(level.battle.enemies.iter()) {
         ser_f32(&mut checksum, combatant.health);
         ser_f32(&mut checksum, combatant.shield);
         for skill in &combatant.skills {
@@ -295,13 +316,15 @@ fn ser_item(bytes: &mut Vec<u8>, item: &Item) {
     ser_u8(bytes, item.item_type as u8);
     ser_targeting(bytes, &item.targeting);
     ser_mods(bytes, &item.mods);
+    ser_u8(bytes, item.rerolled_mod_idx);
 }
 fn deser_item(bytes: &mut &[u8]) -> Option<Item> {
-    Some( Item {
+    Some(Item {
         id: 0,
         item_type: ItemType::from_repr(deser_u8(bytes)?)?,
         targeting: deser_targeting(bytes)?,
         mods: deser_mods(bytes)?,
+        rerolled_mod_idx: deser_u8(bytes)?,
         users: ItemUsers::default(),
     })
 }
@@ -316,7 +339,7 @@ fn ser_targeting(bytes: &mut Vec<u8>, targeting: &Option<Targeting>) {
         Some(HighestRank)                              => { ser_u8(bytes, 5); ser_u8(bytes, 0); },
         Some(LowestRank)                               => { ser_u8(bytes, 6); ser_u8(bytes, 0); },
         Some(RoundRobin(u))                       => { ser_u8(bytes, 7); ser_u8(bytes, *u); },
-        
+
         Some(Instant)                                  => { ser_u8(bytes, 100); ser_u8(bytes, 0); },
         Some(OnAttack)                                 => { ser_u8(bytes, 101); ser_u8(bytes, 0); },
         None                                           => { ser_u8(bytes, 0); ser_u8(bytes, 0); },
@@ -331,7 +354,7 @@ fn deser_targeting(bytes: &mut &[u8]) -> Option<Option<Targeting>> {
         (4, u) => Some(Some(LowestResistance(Element::from_repr(u)?))),
         (5, _)     => Some(Some(HighestRank)),
         (6, _)     => Some(Some(LowestRank)),
-        (7, u) => Some(Some(RoundRobin(u))),        
+        (7, u) => Some(Some(RoundRobin(u))),
         (0, _)     => Some(None),
 
         (100, _)   => Some(Some(Instant)),
@@ -380,7 +403,7 @@ fn deser_u8(bytes: &mut &[u8]) -> Option<u8> {
     *bytes = rest;
     Some(*first)
 }
-fn deser_bytes<const N: usize>(bytes: &mut &[u8]) -> Option<[u8; N]> {    
+fn deser_bytes<const N: usize>(bytes: &mut &[u8]) -> Option<[u8; N]> {
     let (first, rest) = bytes.split_first_chunk::<N>()?;
     *bytes = rest;
     Some(*first)

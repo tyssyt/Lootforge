@@ -34,7 +34,7 @@ pub enum Buff {
 }
 pub type Debuff = Buff;
 
-#[apply(Default)]
+#[derive(Clone, smart_default::SmartDefault)]
 pub struct Buffs {
     attuned: Vec<AttunedBuff>,
     reverb: Vec<ReverbBuff>,
@@ -508,5 +508,22 @@ impl BuffIcon {
             Soullink => include_image!("../../assets/combat/soullink.png"),
         };
         Image::new(source).fit_to_exact_size(Self::SIZE)
+    }
+}
+
+impl std::fmt::Debug for Buffs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut f = f.debug_struct("Buffs");        
+        if !self.attuned.is_empty() { f.field("attuned", &self.attuned); }
+        if !self.reverb.is_empty() { f.field("reverb", &self.reverb); }
+        if !self.bleed.is_empty() { f.field("bleed", &self.bleed); }
+        if !self.vulnerable.is_empty() { f.field("vulnerable", &self.vulnerable); }
+        if !self.confused.is_empty() { f.field("confused", &self.confused); }
+        if !self.echo.is_empty() { f.field("echo", &self.echo); }
+        if !self.lifelink.is_empty() { f.field("lifelink", &self.lifelink); }
+        if !self.incapacitated.is_empty() { f.field("incapacitated", &self.incapacitated); }
+        if !self.dazed.is_empty() { f.field("dazed", &self.dazed); }
+        if !self.soullink.is_empty() { f.field("soullink", &self.soullink); }
+        f.finish()
     }
 }

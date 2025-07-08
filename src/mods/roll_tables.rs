@@ -1,14 +1,20 @@
-use std::{collections::BTreeMap, sync::LazyLock, iter};
-use crate::{elemental::Elemental, prelude::*};
 use super::{ModType, RolledMod};
+use crate::{elemental::Elemental, prelude::*};
+use std::{collections::BTreeMap, iter, sync::LazyLock};
 
-use RollTableElement::*;
 use super::atk_mod::*;
-use super::def_mod::*;
 use super::char_mod::*;
+use super::def_mod::*;
+use RollTableElement::*;
 
 pub static ALL_MODS: LazyLock<BTreeMap<u16, &'static ModType>> = LazyLock::new(|| {
     let mods: Vec<_> = ALL_ROLL_TABLES.mods().collect();
+
+    for m in &mods {
+        if m.attune.is_some_and(|a| a.idx(m).is_none()) {
+            panic!("Invalid AttunementGroup for {:?}", m);
+        }
+    }
 
     let duplicates: Vec<_> = mods.iter().duplicates_by(|m| m.id).collect();
     if duplicates.len() > 0 {
@@ -145,8 +151,8 @@ static DEFENSIVE_ROLL_TABLE: RollTable = RollTable::new(
 static CHAR_ROLL_TABLE: RollTable = RollTable::new(
     &[
         Mod(&HEALTH, 4., false),
-        Mod(&PHY_RES, 2., false),
-        Mod(&ELE_RES, 2., false),
+        Mod(&MAT_RES, 2., false),
+        Mod(&SPIRIT_RES, 2., false),
         Mod(&HEAL_POWER, 2., false),
         Mod(&SHIELD_POWER, 2., false),
     ],
@@ -155,7 +161,7 @@ static CHAR_ROLL_TABLE: RollTable = RollTable::new(
 
 #[derive(Debug)]
 pub struct RollTable {
-    table: &'static [RollTableElement],    
+    table: &'static [RollTableElement],
     exclusive_groups: &'static [&'static [&'static ModType]],
     weight: f32,
 }
@@ -163,7 +169,8 @@ impl RollTable {
     const fn new(table: &'static [RollTableElement], exclusive_groups: &'static [&'static [&'static ModType]]) -> Self {
         let mut weight = 0.;
         let mut i = 0;
-        while i < table.len() { // hurray for const fn restrictions -.-
+        while i < table.len() {
+            // hurray for const fn restrictions -.-
             weight += table[i].weight();
             i += 1;
         }
@@ -218,7 +225,7 @@ impl RollTableElement {
             Table(roll_table) => roll_table.weight,
         }
     }
-    
+
     fn mods(&self) -> Box<dyn Iterator<Item = &'static ModType>> {
         match self {
             Mod(mod_type, _, _) => Box::new(iter::once(*mod_type)),
@@ -226,7 +233,7 @@ impl RollTableElement {
             Table(roll_table) => Box::new(roll_table.mods()),
         }
     }
-    
+
     fn choose_mod(&self, rng: &mut impl Rng) -> &'static ModType {
         match self {
             Mod(mod_type, _, _) => mod_type,

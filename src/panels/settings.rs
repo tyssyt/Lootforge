@@ -26,10 +26,12 @@ impl SettingsWindow {
                     ui.label("delete save");
                 });
 
-                ui.separator();
-
-                // TODO disable on releae build
-                ui.button("Cheats").clicked()
+                if cfg!(debug_assertions) {
+                    ui.separator();
+                    ui.button("Cheats").clicked()
+                } else {
+                    false
+                }
         }).map_or(false, |a| a.inner.unwrap_or(false));
 
         let delete_save = self.confirm_delete(ctx);

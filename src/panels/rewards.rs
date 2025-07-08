@@ -11,7 +11,7 @@ use rand::distr::Uniform;
 use rand_chacha::ChaCha12Rng;
 use web_time::SystemTime;
 
-use crate::{dungeon::dungeon::DungeonData, widgets::selectable_image::SelectableImage};
+use crate::{dungeon::dungeon_data::DungeonData, widgets::selectable_image::SelectableImage};
 
 #[derive(Debug, SmartDefault)]
 pub struct RewardsWindow {
@@ -54,9 +54,9 @@ impl RewardsWindow {
                         }
 
                         if reward.items.len() == 1 {
-                            ui.label("contains 1 item");
+                            ui.label(format!("depth {} - contains 1 item", reward.depth));
                         } else {
-                            ui.label(format!("contains {} items", reward.items.len()));
+                            ui.label(format!("depth {} - contains {} items", reward.depth, reward.items.len()));
                         }
                         // once we have run stats, a button here that opens the stats of the respective run could be nice
                     });
@@ -91,6 +91,10 @@ impl ChestOpening {
     }
 
     fn show(&self, ctx: &Context, chest: &RewardChest) -> bool {
+        if cfg!(debug_assertions) {
+            return true;
+        }
+
         ctx.request_repaint();
 
         let mut ui = Ui::new(

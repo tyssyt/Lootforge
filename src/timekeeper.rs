@@ -1,7 +1,7 @@
 use core::f64;
 use std::time::Duration;
 
-use crate::{dungeon::dungeon::DungeonTick, prelude::*};
+use crate::{dungeon::dungeon_data::DungeonTick, prelude::*};
 use web_time::SystemTime;
 use derive_more::Debug;
 
@@ -122,16 +122,10 @@ fn compute_delay(last_save_wall: SystemTime, frames: u32) -> f64 {
     simulated_time - actual_time
 }
 
-fn compute_next_frame(time: f64, delay: f64) -> f64 {
-    // TODO re enable after speedup implemented
-    // if self.delay.abs() > 5.*60. {
-    //     error!("More then 5 minutes Delay Detected!");
-    //     panic!("More then 5 minutes Delay Detected!");
-    //     // I think the eventual behaviour is do a save with the old time and trigger a reload so that the offline time computating can kick in
-    // }
-    
-    let mut factor = delay * 0.2; // every second delay is a 20% speedup
-    factor = factor.clamp(-0.25, 0.25);
+fn compute_next_frame(time: f64, delay: f64) -> f64 {    
+    // TODO compleletly rework
+    let mut factor = delay * 0.05; // every second delay is a 5% speedup
+    factor = factor.clamp(-0.1, 0.1);
     time + (Timekeeper::FRAME_TIME * (1. + factor))
 }
 

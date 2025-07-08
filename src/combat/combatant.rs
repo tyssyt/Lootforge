@@ -85,33 +85,40 @@ impl Combatant {
     // ranger
     // mage
 
-    pub fn enemy(rng: &mut impl Rng, kind: EnemyKind, i: u8, depth: u16) -> Self {
+    pub fn enemy(kind: EnemyKind, i: u8, depth: u16, rng: &mut impl Rng) -> Self {
         let mut hooks = CombatHooks::default();
-        let damage_type = *Element::VARIANTS.choose(rng).unwrap();
         hooks.on_pre_hit(move |attack: &mut PreHit, _skill: &Skill, _user: &Combatant, _target: &Combatant| {
-            attack.damage.set(attack.damage.get(damage_type) + 20.0, damage_type)
-        });
-        hooks.on_pre_hit(move |attack: &mut PreHit, _skill: &Skill, _user: &Combatant, _target: &Combatant| {
-            attack.penetration = attack.penetration + depth as f32
+            attack.penetration = attack.penetration + depth as f32;
         });
         hooks.on_char(move |char: &mut CharStats| {
-            char.resistances = char.resistances + 2. * (depth as f32)
+            char.resistances = char.resistances + (depth as f32) / 2.;
         });
-
+        
+        let damage_type = *Element::VARIANTS.choose(rng).unwrap();
         let mut enemy = Self {
             kind: CombatantKind::Enemy(i, kind),
             health: 0.,
             shield: 0.,
             buffs: Buffs::default(),
-            skills: kind.skills(),
+            skills: kind.etype().skills(damage_type),
             hooks,
         };
         enemy.health = enemy.stats().max_health;
+
+        let initial_skill_delay = rng.random_range(0..=20);
+        enemy.skills.iter_mut().for_each(|s| s.cd += initial_skill_delay);
+
         enemy
     }
 }
 impl Combatant {
     pub fn combat_start(&mut self) {
+        // add delay to off hand
+        self.skills.iter_mut()
+            .filter(|s| s.kind() == SkillKind::Attack)
+            .nth(1)
+            .map(|s| s.cd += 10);
+
         let mut effects = CombatStartEffects::default();
         self.hooks.combat_start(&mut effects, self);
         self.skills.iter().for_each(|s| s.hooks.combat_start(&mut effects, self));
@@ -129,20 +136,20 @@ impl Combatant {
 
     pub fn find_skill(&self, item_id: usize) -> Option<&Skill> {
         self.skills.iter().find(|s| match s.source {
-            SkillSource::Item(id, _) => item_id == id,
-            SkillSource::Enemy(_) => false,
+            SkillSource::Item { id, .. } => item_id == id,
+            SkillSource::Enemy { .. } => false,
         })
     }
     pub fn find_skill_mut(&mut self, item_id: usize) -> Option<&mut Skill> {
         self.skills.iter_mut().find(|s| match s.source {
-            SkillSource::Item(id, _) => item_id == id,
-            SkillSource::Enemy(_) => false,
+            SkillSource::Item { id, .. } => item_id == id,
+            SkillSource::Enemy { .. } => false,
         })
     }
 
     // TODO cache Stats
     pub fn stats(&self) -> CharStats {
-        let mut char = CharStats::default();
+        let mut char = self.kind.stats();
         self.hooks.char(&mut char);
         self.buffs.apply_to_char(&mut char);
         char
@@ -230,7 +237,7 @@ impl Combatant {
 
     pub fn trigger_attack_against_target(&mut self, target: &mut Combatant, reset_cooldown: bool) -> Option<SkillStats> {
         let mut skills = mem::take(&mut self.skills);
-        let skill = skills.iter_mut().filter(|s| s.kind.is_attack()).next();
+        let skill = skills.iter_mut().filter(|s| s.kind().is_attack()).next();
         let stats = skill.map(|s| s.trigger_against_target(self, target, reset_cooldown));
         self.skills = skills; // TODO why has rust no defer???
         stats
@@ -238,13 +245,19 @@ impl Combatant {
 
     pub fn idle_animation(&self) -> Animation {
         match &self.kind {
-            CombatantKind::Fighter => Animation::FighterAttack,
+            CombatantKind::Fighter => Animation::FighterIdle,
             CombatantKind::Enemy(_, enemy_kind) => enemy_kind.idle_animation(),
+        }
+    }
+    pub fn attack_animation(&self) -> Animation {
+        match &self.kind {
+            CombatantKind::Fighter => Animation::FighterAttack,
+            CombatantKind::Enemy(_, enemy_kind) => enemy_kind.attack_animation(),
         }
     }
 
     pub fn damage(&mut self, amount: f32) {
-        let shield_dmg = (amount * 0.8).at_most(self.shield);
+        let shield_dmg = (amount * 0.75).at_most(self.shield);
         let health_dmg = (amount - shield_dmg).at_most(self.health);
 
         self.health -= health_dmg;
@@ -263,19 +276,30 @@ impl Combatant {
         total_shield
     }
 }
+impl CombatantKind {
+    fn stats(&self) -> CharStats {
+        match self {
+            CombatantKind::Fighter => CharStats {
+                max_health: 500.,
+                resistances: Default::default(),
+                heal_power: 1.0,
+                shield_power: 1.0,
+                cdr: 0,
+                tick_rate: 1,
+            },
+            CombatantKind::Enemy(_, enemy_kind) => enemy_kind.etype().stats(),
+        }
+    }
+}
 
-#[apply(Default)]
+#[derive(Clone, Debug)]
 pub struct CharStats {
-    #[default(1000.0)]
     pub max_health: f32,
     pub resistances: Elemental<f32>,
 
-    #[default(1.0)]
     pub heal_power: f32,
-    #[default(1.0)]
     pub shield_power: f32,
     pub cdr: u16,
-    #[default(1)]
     pub tick_rate: u8,
 }
 

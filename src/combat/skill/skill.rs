@@ -11,11 +11,11 @@ use super::{attack::AttackStats, defend::DefStats, targeting::Targeting};
 
 use SkillKind::*;
 
-#[derive(Debug)]
+#[derive(derive_more::Debug)]
 pub struct Skill {
     pub source: SkillSource,
-    pub kind: SkillKind, // TODO integrate this to source, couse for item source I can derive it
     pub targeting: Targeting,
+    #[debug(skip)]
     pub hooks: CombatHooks,
     pub cd: u16,
     pub uses: u16,
@@ -35,8 +35,7 @@ impl Skill { // constructors
                 .unwrap_or(kind.default_targeting());
 
             let mut res = Self {
-                source: SkillSource::Item(item.id, item.item_type),
-                kind,
+                source: SkillSource::Item { id: item.id, item_type: item.item_type },
                 targeting,
                 hooks: hooks,
                 cd: 0,
@@ -48,12 +47,14 @@ impl Skill { // constructors
             None
         }
     }
-    pub fn from_enemy(kind: SkillKind, cd: u16) -> Self {
+    pub fn from_enemy(kind: SkillKind, cd: u16, add_hooks: impl FnOnce(&mut CombatHooks)) -> Self {
+        let mut hooks = CombatHooks::default();
+        add_hooks(&mut hooks);
+
         Self {
-            source: SkillSource::Enemy(cd),
-            kind,
+            source: SkillSource::Enemy { kind, cd },
             targeting: Targeting::First, // TODO aggro
-            hooks: CombatHooks::default(), // TODO add enemy mods here
+            hooks,
             cd,
             uses: 0,
         }
@@ -61,13 +62,26 @@ impl Skill { // constructors
 }
 
 impl Skill {
+    pub fn kind(&self) -> SkillKind {
+        self.source.kind()
+    }
+
     pub fn cooldown(&self) -> u16 {
         let base = match &self.source {
-            SkillSource::Item(..) => self.kind.base_cooldown(),
-            SkillSource::Enemy(cd) => *cd,
+            // this one feels weird, guess we could move base cooldown to item_type or sth?
+            SkillSource::Item { .. } => self.kind().base_cooldown(),
+            SkillSource::Enemy { cd, .. } => *cd,
         };
 
-        let mut char = CharStats::default();
+        // TODO consider a different hook for cdr...
+        let mut char = CharStats {
+            max_health: 0.,
+            resistances: Default::default(),
+            heal_power: 1.,
+            shield_power: 1.,
+            cdr: 0,
+            tick_rate: 1,
+        };
         // cdr can currently only roll on the skill giving items, so we only nee to check our mods
         self.hooks.char(&mut char);
 
@@ -75,10 +89,10 @@ impl Skill {
         base - reduced_ticks
     }
 
-    pub fn image(&self) -> Image<'_> {
+    pub fn image(&self) -> Image<'_> {        
         match &self.source {
-            SkillSource::Item(_, item_type) => item_type.image(),
-            SkillSource::Enemy(_) => panic!("enemy skills do not have images"),
+            SkillSource::Item { item_type, .. } => item_type.image(),
+            SkillSource::Enemy { .. } => panic!("enemy skills do not have images"),
         }
     }
 
@@ -100,7 +114,7 @@ impl Skill {
         reset_cooldown: bool,
     ) -> SkillStats {        
         use SkillKind::*;
-        let skill_stats = match self.kind {
+        let skill_stats = match self.kind() {
             Attack =>    SkillStats::Attack(self.source.clone(), attack::attack_single(self, user, allies, enemies)),
             AoeAttack => SkillStats::Attack(self.source.clone(), attack::attack_aoe(self, user, allies, enemies)),
             Defend =>    todo!(), // TODO
@@ -117,7 +131,7 @@ impl Skill {
         reset_cooldown: bool,
     ) -> SkillStats {
         use SkillKind::*;
-        let skill_stats = match self.kind {
+        let skill_stats = match self.kind() {
             Attack | AoeAttack => SkillStats::Attack(self.source.clone(), attack::attack_target(self, user, target)),
             Defend => SkillStats::Defend(self.source.clone(), defend::defend(self, user)),
         };
@@ -167,8 +181,16 @@ impl SkillKind {
 #[apply(Enum)]
 #[derive(PartialEq)]
 pub enum SkillSource {
-    Item(usize, ItemType),
-    Enemy(u16),
+    Item { id: usize, item_type: ItemType },
+    Enemy { kind: SkillKind, cd: u16 },
+}
+impl SkillSource {
+    pub fn kind(&self) -> SkillKind {
+        match self {
+            SkillSource::Item { item_type, .. } => SkillKind::from_item_type(*item_type).unwrap(),
+            SkillSource::Enemy { kind, .. } => *kind,
+        }
+    }
 }
 
 #[apply(Enum)]

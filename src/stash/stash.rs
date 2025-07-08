@@ -46,20 +46,23 @@ impl Stash {
         }
     }
 
-    pub unsafe fn get_mut(&mut self, item: Rc<Item>) -> Option<&mut Item> {
+    pub fn modify(&mut self, item: Rc<Item>, f: impl FnOnce(&mut Item)) {
         self.cached_filter = None;
 
         let id = item.id;
         mem::drop(item); // invalidate the rc, so that the only remaining one is the stashes
 
-        let item = self.items.iter_mut().find(|item| item.id == id)?;
-        if Rc::strong_count(item) > 1 {
-            return None
+        let item = self.items.iter_mut().find(|item| item.id == id).unwrap();
+        let count = Rc::strong_count(&item);
+        if count != 1 {
+            panic!("Attempting to modify item {}, but count is {}", item.id, count)
         }
 
-        // Rc::get_mut_unchecked
-        let ptr = Rc::as_ptr(item) as *mut Item;
-        unsafe { Some ( &mut *ptr ) }
+        unsafe {            
+            // Rc::get_mut_unchecked
+            let ptr = Rc::as_ptr(item) as *mut Item;
+            f(&mut *ptr);
+        }
     }
 
     pub fn find(&self, item_id: usize) -> Option<Rc<Item>> {

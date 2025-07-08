@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{mods::attune::AttuneKind, prelude::*};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::atomic::{AtomicU32, Ordering}};
 
 use enumset::EnumSet;
@@ -13,6 +13,7 @@ pub struct ItemFilter {
     #[default(1..=u8::MAX)]
     ranks: RangeInclusive<u8>,
     mods: BTreeMap<u16, u8>,
+    attunement: Vec<(AttuneKind, usize)>,
     excluded_item_ids: Vec<usize>,
 
     #[default(ID_COUNTER.fetch_add(1, Ordering::Relaxed))]
@@ -25,9 +26,17 @@ impl ItemFilter {
             types: EnumSet::only(item_type),
             ranks: rank..=rank,
             mods: mods.into_iter().collect(),
+            attunement: Default::default(),
             excluded_item_ids: excluded_item_ids.into_iter().collect(),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             mod_count: 0
+        }
+    }
+    pub fn of_attunement(attunement: Vec<(AttuneKind, usize)>, excluded_item_ids: impl IntoIterator<Item = usize>) -> Self {
+        Self {
+            attunement,
+            excluded_item_ids: excluded_item_ids.into_iter().collect(),
+            ..Default::default()
         }
     }
 
@@ -39,6 +48,8 @@ impl ItemFilter {
         self.types = Default::default();
         self.ranks = RangeInclusive::new(1, u8::MAX);
         self.mods = Default::default();
+        self.attunement = Default::default();
+        self.excluded_item_ids = Default::default();
         self.mod_count += 1;
     }
 
@@ -79,6 +90,7 @@ impl ItemFilter {
         (self.types.is_empty() || self.types.contains(item.item_type))
             && self.ranks.contains(&item.rank())
             && item.has_all_mods(self.mods.iter().map(|(&m, &c)| (m, c)))
+            && (self.attunement.is_empty() || item.attunements().into_iter().any(|a| self.attunement.contains(&a)))
             && !self.excluded_item_ids.contains(&item.id)
     }
 }

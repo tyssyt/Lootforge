@@ -87,22 +87,26 @@ impl StorageManager {
         self.store.start_save(file_name, bytes);
     }
 
-    pub fn loading(app: &mut LootforgeApp) -> bool {
+    pub fn loading(app: &mut LootforgeApp) -> LoadingState<(),()> {
         if app.storage_manager.store.initializing() {
-            return true;
+            return LoadingState::Loading(());
         }
 
         let loading = app.storage_manager.store.loading();
 
         if loading == LoadingState::None && app.storage_manager.load_quicksaves_after_init {
-            app.storage_manager.start_loading_quicksaves();
             app.storage_manager.load_quicksaves_after_init = false;
-            return true;
+
+            if !app.storage_manager.start_loading_quicksaves() {
+                app.stash.give_starting_items();
+                return LoadingState::Done(());
+            }
+            return LoadingState::Loading(());
         }
 
         match loading {
-            LoadingState::None => return false,
-            LoadingState::Loading(_) => return true,
+            LoadingState::None => LoadingState::None,
+            LoadingState::Loading(_) => LoadingState::Loading(()),
             LoadingState::Done(bytes) => {
                 if let Some(loaded_app) = app.storage_manager.load_saves(bytes) {
                     app.storage_manager.manage_saves();
@@ -112,12 +116,12 @@ impl StorageManager {
                     warn!("Failed to load last save, starting new game");
                     app.stash.give_starting_items();
                 }
-                return false;
+                LoadingState::Done(())
             },
         }
     }
 
-    fn start_loading_quicksaves(&mut self) {
+    fn start_loading_quicksaves(&mut self) -> bool {
         let quicksaves: Vec<_> = self.store.file_names()
             .into_iter()
             .filter(|save| save.starts_with("auto"))
@@ -125,11 +129,12 @@ impl StorageManager {
 
         if quicksaves.is_empty() {
             info!("no quicksave found, starting new game");
-            return;
+            return false;
         }
 
         info!("loading {:?}", &quicksaves);
         self.store.start_load(quicksaves);
+        true
     }
 
     fn load_saves(&self, bytes: Vec<Vec<u8>>) -> Option<LootforgeApp> {

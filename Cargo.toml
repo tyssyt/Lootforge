@@ -14,41 +14,41 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [dependencies]
 lootforge_macros = { path = "./lootforge-macros" }
-rand = "0.9"
-rand_chacha = "0.9"
-getrandom = { version = "0.3", features = ["wasm_js"]} # TODO figure out how to only enable this is for web target # version downgraded because of conflict with eframe
-strum = { version = "0.27", features = ["derive"]}
-web-time = "1.1"
-log = "0.4"
-crc = "3.2"
-itertools = "0.14"
-derive_more = { version = "2.0", features = ["debug", "unwrap"] }
-enumset = "1.1"
-enum_dispatch = "0.3"
-smart-default = "0.7"
-macro_rules_attribute = "0.2"
+rand = "0.9.1"
+rand_chacha = "0.9.0"
+getrandom = { version = "0.3.3", features = ["wasm_js"]} # TODO figure out how to only enable this is for web target # version downgraded because of conflict with eframe
+strum = { version = "0.27.1", features = ["derive"]}
+web-time = "1.1.0"
+log = "0.4.27"
+crc = "3.3.0"
+itertools = "0.14.0"
+derive_more = { version = "2.0.1", features = ["debug", "unwrap"] }
+enumset = "1.1.7"
+enum_dispatch = "0.3.13"
+smart-default = "0.7.1"
+macro_rules_attribute = "0.2.2"
 
-egui = { version = "0.31", default-features = false, features = ["default_fonts", "log"]}
-eframe = { version = "0.31", default-features = false, features = [
+egui = { version = "0.31.1", default-features = false, features = ["default_fonts", "log"]}
+eframe = { version = "0.31.1", default-features = false, features = [
     "default_fonts", # Embed the default egui fonts.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "wayland",       # To support Linux (and CI)
 ] } # figure out how to enable the right ones in the right target
-egui_extras = { version = "0.31", default-features = false, features = ["image"]}
-image = { version = "0.25", features = ["png"] }
-egui_double_slider = "0.7"
+egui_extras = { version = "0.31.1", default-features = false, features = ["image"]}
+image = { version = "0.25.6", features = ["png"] }
+egui_double_slider = "0.8.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"]}
-home = "0.5"
-windows-sys = "0.59"
+env_logger = { version = "0.11.8", default-features = false, features = ["auto-color", "humantime"]}
+home = "0.5.11"
+windows-sys = "0.59.0"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbOpenDbRequest", "IdbRequest", "IdbTransactionMode", "Window", "Blob", "DomException"] } # TODO see if we really need all of them
+wasm-bindgen = "0.2.100"
+wasm-bindgen-futures = "0.4.50"
+web-sys = { version = "0.3.77", features = ["IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbOpenDbRequest", "IdbRequest", "IdbTransactionMode", "Window", "Blob", "DomException"] } # TODO see if we really need all of them
 
 
 [profile.release]

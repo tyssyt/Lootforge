@@ -17,7 +17,7 @@ pub struct LootPanel {
     shown_mods: Vec<&'static ModType>,
 }
 impl LootPanel {
-    pub fn show(&mut self, ui: &mut Ui, stash: &mut Stash, filter_override: Option<ItemFilter>) {
+    pub fn show(&mut self, ui: &mut Ui, stash: &mut Stash, filter_override: Option<&ItemFilter>) {
         ui.heading("Loot");
         self.show_filters(stash.max_rank(), ui);
         ui.separator();
@@ -124,10 +124,10 @@ impl LootPanel {
         });
     }
 
-    fn show_items(&mut self, ui: &mut Ui, stash: &mut Stash, filter_override: Option<ItemFilter>) {
+    fn show_items(&mut self, ui: &mut Ui, stash: &mut Stash, filter_override: Option<&ItemFilter>) {
         ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                for item in stash.filtered_items(filter_override.as_ref().unwrap_or(&self.filter), self.order).iter() {
+                for item in stash.filtered_items(filter_override.unwrap_or(&self.filter), self.order).iter() {
                     // without this surrounding ui the elements will not wrap around to a new line
                     // TODO with every update of egui, check if this is still necessary
                     ui.allocate_ui(vec2(64., 64.), |ui| {
