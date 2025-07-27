@@ -71,13 +71,13 @@ fn bonus_items(rng: &mut impl Rng, max_rank: u16, overrank_chance: f64, item_typ
 }
 
 fn bonus_item(rng: &mut impl Rng, dist: &WeightedIndex<f64>, item_types: &'static[ItemType]) -> Item {
-    let item_type = *item_types.choose(rng).unwrap();
+    let item_type = *item_types.pick(rng);
     let rank = (dist.sample(rng) as u8 +1).try_into().expect("congrats, you broke the game");
     Item::random(rng, item_type, rank)
 }
 
 fn max_item(rng: &mut impl Rng, max_rank: u16, overrank_chance: f64, item_types: &'static[ItemType]) -> Item {
-    let item_type = *item_types.choose(rng).unwrap();  
+    let item_type = *item_types.pick(rng);  
     if rng.random_bool(overrank_chance) {
         Item::random(rng, item_type, max_rank as u8 +1)
     } else {

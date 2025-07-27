@@ -71,41 +71,21 @@ fn show_sprite(ui: &mut Ui, char: &Combatant, char_data: &mut CombatantData, ani
 
 fn show_health_bar(ui: &mut Ui, char: &Combatant, char_stats: &CharStats) {
     let percent_health = char.health / char_stats.max_health;
-    let percent_shield = (char.shield / char_stats.max_health).at_most(1.);
+    let percent_wounds = (char_stats.max_health - char.wounds) / char_stats.max_health;
+    let percent_shield = char.shield / char_stats.max_health;
 
-    let (allocated_rec, _) = ui.allocate_exact_size(vec2(64., 16.), Sense::hover());
+    let (mut allocated_rec, _) = ui.allocate_exact_size(vec2(64., 18.), Sense::hover());
+    draw_heath_bar_part(ui, allocated_rec, percent_shield, Color32::LIGHT_GRAY);
 
-    if percent_health + percent_shield > 1. {
-        ui.painter()
-            .rect_filled(allocated_rec, CornerRadius::ZERO, Color32::RED);
-        let shield_rect = Rect::from_min_max(
-            allocated_rec.min + vec2(allocated_rec.width() * (1. - percent_shield), 0.),
-            allocated_rec.max,
-        );
-        ui.painter()
-            .rect_filled(shield_rect, CornerRadius::ZERO, Color32::LIGHT_GRAY);
-    } else {
-        ui.painter()
-            .rect_filled(allocated_rec, CornerRadius::ZERO, Color32::BLACK);
-        let shield_rect = Rect::from_min_size(
-            allocated_rec.min,
-            vec2(
-                allocated_rec.width() * (percent_shield + percent_health),
-                allocated_rec.height(),
-            ),
-        );
-        ui.painter()
-            .rect_filled(shield_rect, CornerRadius::ZERO, Color32::LIGHT_GRAY);
-        let health_rect = Rect::from_min_size(
-            allocated_rec.min,
-            vec2(
-                allocated_rec.width() * percent_health,
-                allocated_rec.height(),
-            ),
-        );
-        ui.painter()
-            .rect_filled(health_rect, CornerRadius::ZERO, Color32::RED);
-    }
+    allocated_rec = allocated_rec.shrink2(vec2(1., 2.));
+    draw_heath_bar_part(ui, allocated_rec, 1., Color32::BLACK);
+    draw_heath_bar_part(ui, allocated_rec, percent_wounds, Color32::DARK_RED);
+    draw_heath_bar_part(ui, allocated_rec, percent_health, Color32::RED);
+}
+fn draw_heath_bar_part(ui: &mut Ui, full_rect: Rect, percent: f32, color: Color32) {    
+    let size = vec2(full_rect.width() * percent, full_rect.height());
+    let rect = Rect::from_min_size(full_rect.min, size);
+    ui.painter().rect_filled(rect, CornerRadius::ZERO, color);
 }
 
 fn show_skills_icons(ui: &mut Ui, char: &Combatant) {
@@ -219,7 +199,7 @@ impl CombatantData {
                 self.floating.swap_remove(oldest).slot
             }
             1 => open_slots[0],
-            _ => *open_slots.choose(&mut rng).unwrap(),
+            _ => *open_slots.pick(&mut rng),
         };
 
         let offset = vec2(rng.random_range(-5.0..5.0), rng.random_range(-5.0..5.0));

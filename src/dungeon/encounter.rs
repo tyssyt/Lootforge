@@ -65,7 +65,7 @@ impl Encounter {
         let (mut easy, mut medium, mut hard) = (battles / 3, battles / 3, battles / 3);
 
         let remainder = battles % 3;
-        [Easy, Medium, Hard].choose_multiple(rng, remainder as usize)
+        [Easy, Medium, Hard].pick_multiple(rng, remainder as usize)
             .for_each(|d| match d {
                 Easy => easy += 1,
                 Medium => medium += 1,
@@ -81,7 +81,7 @@ impl Encounter {
 
         let mut open_indices: Vec<_> = (1..encounters.len()-2).collect();
         while hard > 0 {
-            let idx = *open_indices.choose(rng).unwrap();
+            let idx = *open_indices.pick(rng);
             open_indices.retain(|&i| i < idx -1 || i > idx +1);
 
             encounters[idx] = Some(Hard);
@@ -117,8 +117,8 @@ impl Encounter {
         ];
 
         let enemies = chain!(
-            FIRST_CHOICE.choose(rng).unwrap().iter(),
-            SECOND_CHOICE.choose(rng).unwrap().iter(),
+            FIRST_CHOICE.pick(rng).iter(),
+            SECOND_CHOICE.pick(rng).iter(),
         ).copied().collect();
 
         Self { difficulty: Easy, enemies }
@@ -134,9 +134,9 @@ impl Encounter {
         static SECOND_CHOICE: [EnemyType; 3] = [EnemyType::Medium, EnemyType::Tank, EnemyType::Dps];
 
         let enemies = chain!(
-            FIRST_CHOICE.choose(rng).unwrap().iter(),
-            (0..3).filter_map(|_| SECOND_CHOICE.choose(rng)),
-        ).copied().collect();
+            FIRST_CHOICE.pick(rng).iter().copied(),
+            (0..3).map(|_| *SECOND_CHOICE.pick(rng)),
+        ).collect();
 
         Self { difficulty: Medium, enemies }
     }
@@ -144,7 +144,7 @@ impl Encounter {
     fn hard_encounter(rng: &mut impl Rng) -> Self {
         static CHOICE: [EnemyType; 3] = [EnemyType::Medium, EnemyType::Tank, EnemyType::Dps]; // TODO add special
         let picks = rng.random_range(5..=6);
-        let enemies = (0..picks).filter_map(|_| CHOICE.choose(rng)).copied().collect();
+        let enemies = (0..picks).map(|_| *CHOICE.pick(rng)).collect();
 
         Self { difficulty: Hard, enemies }
     }

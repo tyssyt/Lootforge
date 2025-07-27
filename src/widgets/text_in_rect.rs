@@ -7,16 +7,14 @@ pub fn text_in_rect(
     rect: Rect,
     align: Align2,
 ) {
-    let mut layout_job = WidgetText::RichText(text.into()).into_layout_job(
+    let layout_job = WidgetText::RichText(text.into()).into_layout_job(
         ui.style(),
         FontSelection::Default,
         align.y(),
     );
-    layout_job.halign = align.x();
 
-    let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
-
-    let pos = align.pos_in_rect(&rect);
+    let galley = ui.painter().layout_job(layout_job);
+    let pos = align.align_size_within_rect(galley.size(), rect).left_top();
 
     ui.painter().galley(pos, galley, color);
 }

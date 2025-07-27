@@ -80,8 +80,8 @@ impl<T> Elemental<T> {
         if cond.madness      { self.madness      = from.madness }
         if cond.void      { self.void      = from.void }
     }
-    pub fn choose<R: Rng + ?Sized>(&self, rng: &mut R) -> &T {
-        self.get(*Element::VARIANTS.choose(rng).unwrap())
+    pub fn pick<R: Rng + ?Sized>(&self, rng: &mut R) -> &T {
+        self.get(*Element::VARIANTS.pick(rng))
     }
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         [&self.bleed, &self.fracture, &self.madness, &self.void].into_iter()

@@ -61,7 +61,7 @@ impl ChestAdder {
         ui.horizontal_wrapped(|ui| {
             ui.add(DragValue::new(&mut self.depth).range(1..=100));
             if ui.button("Add Chest").clicked() {
-                dungeon.rewards.push(RewardChest::from(&mut rand::rng(), self.depth));
+                dungeon.rewards.entry(self.depth).or_default().push(RewardChest::from(&mut rand::rng(), self.depth));
             }
         });
     }

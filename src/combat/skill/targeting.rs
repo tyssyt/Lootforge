@@ -31,8 +31,8 @@ impl Targeting {
     pub fn roll_ring(rng: &mut impl Rng) -> Self {
         match rng.random_range(0..4) {
             0 => LowestHealth,
-            1 => LowestEffectiveHealth(*Element::VARIANTS.choose(rng).unwrap()),
-            2 => LowestResistance(*Element::VARIANTS.choose(rng).unwrap()),
+            1 => LowestEffectiveHealth(*Element::VARIANTS.pick(rng)),
+            2 => LowestResistance(*Element::VARIANTS.pick(rng)),
             3 => RoundRobin(0),
             _ => panic!(),
         }

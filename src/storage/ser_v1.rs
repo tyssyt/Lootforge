@@ -1,12 +1,12 @@
 use std::{
     collections::BTreeMap,
-    rc::{Rc, Weak},
     sync::atomic::{AtomicUsize, Ordering},
     time::Duration,
     u8,
 };
 
 use crate::{
+    prelude::*,
     combat::skill::targeting::Targeting,
     dungeon::{dungeon::Dungeon, dungeon_data::DungeonData, floor::Floor, reward::RewardChest},
     elemental::Element,
@@ -20,7 +20,6 @@ use crate::{
     timekeeper::Timekeeper,
     LootforgeApp,
 };
-use log::error;
 use web_time::SystemTime;
 
 use super::{ser, storage_manager::StorageManager};
@@ -197,24 +196,27 @@ fn deser_equipment_set(bytes: &mut &[u8], mut deser_slot: impl FnMut(&mut &[u8])
     Some(set)
 }
 
-fn ser_rewards(bytes: &mut Vec<u8>, rewards: &Vec<RewardChest>) {
-    ser_u32(bytes, rewards.len() as u32);
-    for chests in rewards {
-        ser_u16(bytes, chests.depth);
-        ser_u16(bytes, chests.items.len() as u16);
-        for item in &chests.items {
+fn ser_rewards(bytes: &mut Vec<u8>, rewards: &BTreeMap<u16, Vec<RewardChest>>) {
+    let rewards_len: usize = rewards.values().map(|r| r.len()).sum();
+    ser_u32(bytes, rewards_len as u32);
+    for chest in rewards.values().flatten() {
+        ser_u16(bytes, chest.depth);
+        ser_u16(bytes, chest.items.len() as u16);
+        for item in &chest.items {
             ser_item(bytes, item);
         }
     }
 }
-fn deser_rewards(bytes: &mut &[u8]) -> Option<Vec<RewardChest>> {    
+fn deser_rewards(bytes: &mut &[u8]) -> Option<BTreeMap<u16, Vec<RewardChest>>> {    
+    let mut rewards: BTreeMap<u16, Vec<RewardChest>> = BTreeMap::new();
     let len = deser_u32(bytes)?;
-    (0..len).map(|_| {
+    for _ in 0..len {
         let depth = deser_u16(bytes)?;
         let len = deser_u16(bytes)?;
         let items = (0..len).map(|_| deser_item(bytes)).collect::<Option<_>>()?;
-        Some(RewardChest { depth, items })
-    }).collect()
+        rewards.entry(depth).or_default().push(RewardChest { depth, items });
+    }
+    Some(rewards)
 }
 
 fn ser_dungeon_data(bytes: &mut Vec<u8>, dungeon_data: &DungeonData) {

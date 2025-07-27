@@ -41,8 +41,9 @@ impl DungeonPanel {
                 if rewards::add_chest_button(ui).clicked() {
                     rewards_window.open();
                 }
-                if dungeon.rewards.len() > 1 {
-                    ui.label(format!("x{}", dungeon.rewards.len()));
+                let rewards: usize = dungeon.rewards.values().map(|r| r.len()).sum();
+                if rewards > 1 {
+                    ui.label(format!("x{}", rewards));
                 }
             }
 

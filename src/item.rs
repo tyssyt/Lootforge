@@ -241,6 +241,7 @@ impl Item {
         } else if self.users.any_wardrobe.get() {
             text_in_rect(ui, "W", Color32::YELLOW, response.rect, Align2::LEFT_TOP);
         }
+
         response
     }
 

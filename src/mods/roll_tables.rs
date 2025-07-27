@@ -183,7 +183,7 @@ impl RollTable {
 
     pub fn roll_mod(&self, rng: &mut impl Rng, existing_mods: &Vec<RolledMod>) -> &'static ModType {
         loop {
-            let mod_ = self.choose_mod(rng);
+            let mod_ = self.pick_mod(rng);
             if self.check_mod_valid(mod_, existing_mods) {
                 return mod_;
             }
@@ -197,8 +197,8 @@ impl RollTable {
             .dedup_by(|&a, &b| ptr::eq(a, b))
     }
 
-    fn choose_mod(&self, rng: &mut impl Rng) -> &'static ModType {
-        self.table.choose_weighted(rng, |e| e.weight()).unwrap().choose_mod(rng)
+    fn pick_mod(&self, rng: &mut impl Rng) -> &'static ModType {
+        self.table.pick_weighted(rng, |e| e.weight()).pick_mod(rng)
     }
     fn check_mod_valid(&self, mod_: &'static ModType, existing_mods: &Vec<RolledMod>) -> bool {
         if !self.table.iter().all(|e| e.check_mod_valid(mod_, existing_mods)) {
@@ -234,11 +234,11 @@ impl RollTableElement {
         }
     }
 
-    fn choose_mod(&self, rng: &mut impl Rng) -> &'static ModType {
+    fn pick_mod(&self, rng: &mut impl Rng) -> &'static ModType {
         match self {
             Mod(mod_type, _, _) => mod_type,
-            EMod(elemental, _, _) => elemental.choose(rng),
-            Table(roll_table) => roll_table.choose_mod(rng),
+            EMod(elemental, _, _) => elemental.pick(rng),
+            Table(roll_table) => roll_table.pick_mod(rng),
         }
     }
     fn check_mod_valid(&self, mod_: &'static ModType, existing_mods: &Vec<RolledMod>) -> bool {

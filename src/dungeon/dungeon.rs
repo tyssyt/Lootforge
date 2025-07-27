@@ -63,7 +63,7 @@ impl Dungeon {
 impl Area {
     pub fn new(rng: &mut impl Rng) -> Area {
         Self {
-            background: *Background::VARIANTS.choose(rng).unwrap(),
+            background: *Background::VARIANTS.pick(rng),
         }
     }
 }

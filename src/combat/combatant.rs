@@ -30,6 +30,7 @@ pub struct Combatant {
     pub kind: CombatantKind,
 
     pub health: f32,
+    pub wounds: f32,
     pub shield: f32,
     pub buffs: Buffs,
     pub skills: Vec<Skill>,
@@ -73,6 +74,7 @@ impl Combatant {
         let mut explorer = Self {
             kind,
             health: 0.,
+            wounds: 0.,
             shield: 0.,
             buffs: Buffs::default(),
             skills,
@@ -94,10 +96,11 @@ impl Combatant {
             char.resistances = char.resistances + (depth as f32) / 2.;
         });
         
-        let damage_type = *Element::VARIANTS.choose(rng).unwrap();
+        let damage_type = *Element::VARIANTS.pick(rng);
         let mut enemy = Self {
             kind: CombatantKind::Enemy(i, kind),
             health: 0.,
+            wounds: 0.,
             shield: 0.,
             buffs: Buffs::default(),
             skills: kind.etype().skills(damage_type),
@@ -257,22 +260,25 @@ impl Combatant {
     }
 
     pub fn damage(&mut self, amount: f32) {
+        let char = self.stats();
         let shield_dmg = (amount * 0.75).at_most(self.shield);
-        let health_dmg = (amount - shield_dmg).at_most(self.health);
+        let health_dmg = amount - shield_dmg;
 
-        self.health -= health_dmg;
+        self.health -= health_dmg.at_most(self.health);
+        self.wounds += (health_dmg / 4.).at_most(char.max_health - self.wounds);
         self.shield -= shield_dmg;
     }
     pub fn heal(&mut self, amount: f32) -> f32 {
         let char = self.stats();
         let total_heal = amount * char.heal_power;
-        let healed = total_heal.at_most(char.max_health - self.health);
+        let healed = total_heal.at_most(char.max_health - self.wounds - self.health);
         self.health += healed;
         healed
     }
     pub fn shield(&mut self, amount: f32) -> f32 {
-        let total_shield = amount * self.stats().shield_power;
-        self.shield += total_shield;
+        let char = self.stats();
+        let total_shield = amount * char.shield_power;
+        self.shield += total_shield.at_most(char.max_health - self.shield);
         total_shield
     }
 }

@@ -70,8 +70,8 @@ impl RerollRandom {
     fn forge(&mut self, base: Rc<Item>, stash: &mut Stash) {
         let mut rng = rand::rng();
         let unprotected_mods = self.unprotected_mods(&base);
-        let old_mod_id = unprotected_mods.choose_weighted(&mut rng, |(_,c)| *c).unwrap().0;
-        let idx = base.mods.iter().enumerate().filter(|(_, m)| m.mod_id == old_mod_id).choose(&mut rng).unwrap().0;
+        let old_mod_id = unprotected_mods.pick_weighted(&mut rng, |(_,c)| *c).0;
+        let idx = base.mods.iter().enumerate().filter(|(_, m)| m.mod_id == old_mod_id).pick(&mut rng).0;
 
         let reset_rerolled_mod_idx = base.rerolled_mod_idx().is_some_and(|i| i as usize == idx);
 

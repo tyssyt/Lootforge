@@ -4,7 +4,7 @@ use crate::{
     dungeon::reward::RewardChest,
     item::{Item, ItemType},
     prelude::*,
-    stash::stash::Stash,
+    stash::stash::Stash, widgets::text_in_rect::text_in_rect,
 };
 use egui::{emath::inverse_lerp, epaint::RectShape};
 use rand::distr::Uniform;
@@ -31,42 +31,39 @@ impl RewardsWindow {
             .open(&mut self.open)
             .collapsible(false)
             .resizable(false)
+            .scroll([false, true])
             .show(ctx, |ui| {
-                let dont_draw_idx = self.opening.as_ref().map(|o| o.chest_idx).unwrap_or(usize::MAX);
-                for (i, reward) in dungeon.rewards.iter().enumerate() {
-                    if i > 0 {
+                let mut dont_draw_idx = self.opening.as_ref().map(|o| &o.chest_idx).cloned();
+                let mut first = true;
+                for (&depth, rewards) in dungeon.rewards.iter() {
+                    if first {
+                        first = false;
+                    } else {
                         ui.separator();
                     }
-                    ui.horizontal(|ui| {
-                        if dont_draw_idx == i {
-                            add_chest_button_placeholder(ui);
-                        } else {
-                            let response = add_chest_button(ui);
-                            if response.clicked() {
-                                self.opening = Some(ChestOpening {
-                                    start: SystemTime::now(),
-                                    chest_start_rect: response.rect,
-                                    chest_idx: i,
-                                    seed: [0; 32],
-                                });
-                                self.opening.as_mut().map(|op| rand::rng().fill_bytes(&mut op.seed));
-                            }
-                        }
 
-                        if reward.items.len() == 1 {
-                            ui.label(format!("depth {} - contains 1 item", reward.depth));
-                        } else {
-                            ui.label(format!("depth {} - contains {} items", reward.depth, reward.items.len()));
-                        }
-                        // once we have run stats, a button here that opens the stats of the respective run could be nice
-                    });
+                    let ddi = dont_draw_idx.take_if(|i| i.0 == depth).map(|i| i.1).unwrap_or_default();
+                    if let Some(opening) = draw_row(ui, depth, rewards, ddi) {
+                        self.opening = Some(opening);
+                    }
                 }
             });
 
         if let Some(opening) = &mut self.opening {
-            if opening.show(ctx, &dungeon.rewards[opening.chest_idx]) {
-                let reward = dungeon.rewards.remove(opening.chest_idx);
-                reward.items.into_iter().for_each(|item| stash.add(item));
+            let chests = dungeon.rewards.get(&opening.chest_idx.0)
+                .into_iter()
+                .flatten()
+                .enumerate()
+                .filter(|(i,_)| opening.chest_idx.1.contains(i))
+                .flat_map(|(_, c)| &c.items)
+                .collect();
+
+            if opening.show(ctx, chests) {
+                dungeon.rewards.get_mut(&opening.chest_idx.0)
+                    .into_iter()
+                    .flat_map(|r| extract_if(r, &opening.chest_idx.1))
+                    .flat_map(|c| c.items.into_iter())
+                    .for_each(|item| stash.add(item));
                 self.opening = None;
             }
         }
@@ -77,24 +74,92 @@ impl RewardsWindow {
     }
 }
 
+// TODO #[unstable(feature = "extract_if", reason = "recently added", issue = "43244")]
+fn extract_if(vec: &mut Vec<RewardChest>, idx: &Vec<usize>) -> Vec<RewardChest> {
+    let mut extracted = Vec::with_capacity(idx.len());
+    let mut i_vec = 0;
+    let mut i_idx = 0;
+    while i_vec < vec.len() {
+        if idx.contains(&i_idx) {
+            extracted.push(vec.remove(i_vec));
+        } else {
+            i_vec += 1;
+        }
+        i_idx += 1;
+    }
+    extracted
+}
+
+fn draw_row(ui: &mut Ui, depth: u16, rewards: &Vec<RewardChest>, dont_draw_idx: Vec<usize>) -> Option<ChestOpening> {
+    let mut opening = None;
+
+    let mut open_5 = false;
+    let mut open_5_rects = Vec::new();
+    ui.horizontal(|ui| {
+        ui.label(format!("depth {}", depth));
+        if rewards.len() >= 5 {
+            if ui.button("Open 5").clicked() {
+                open_5 = true;
+            }
+        }
+    });
+
+    ui.horizontal_wrapped(|ui| {
+        for (i, reward) in rewards.iter().enumerate() {
+            if dont_draw_idx.contains(&i) {
+                add_chest_button_placeholder(ui);
+            } else {                
+                let response = add_chest_button(ui);
+                if response.clicked() {
+                    opening = Some(ChestOpening {
+                        start: SystemTime::now(),
+                        chest_start_rects: vec![response.rect],
+                        chest_idx: (depth, vec![i]),
+                        seed: rand::rng().random(),
+                    });
+                }
+                text_in_rect(
+                    ui,
+                    RichText::new(reward.items.len().to_string()).background_color(Color32::BLACK),
+                    Color32::WHITE,
+                    response.rect,
+                    Align2::RIGHT_BOTTOM,
+                );
+
+                if open_5 && i < 5 {
+                    open_5_rects.push(response.rect);
+                }
+
+            }
+        }
+    });
+
+    if open_5 {        
+        opening = Some(ChestOpening {
+            start: SystemTime::now(),
+            chest_start_rects: open_5_rects,
+            chest_idx: (depth, vec![0,1,2,3,4]),
+            seed: rand::rng().random(),
+        });
+    }
+
+    opening
+}
+
 #[derive(Debug)]
 struct ChestOpening {
     start: SystemTime,
-    chest_start_rect: Rect,
-    chest_idx: usize,
+    chest_start_rects: Vec<Rect>,
+    chest_idx: (u16, Vec<usize>),
     seed: [u8; 32],
 }
 
 impl ChestOpening {
     fn target(&self, ui: &Ui) -> Rect {
-        Rect::from_center_size(ui.max_rect().center(), self.chest_start_rect.size())
+        Rect::from_center_size(ui.max_rect().center(), SIZE)
     }
 
-    fn show(&self, ctx: &Context, chest: &RewardChest) -> bool {
-        if cfg!(debug_assertions) {
-            return true;
-        }
-
+    fn show(&self, ctx: &Context, items: Vec<&Item>) -> bool {
         ctx.request_repaint();
 
         let mut ui = Ui::new(
@@ -108,18 +173,20 @@ impl ChestOpening {
             0.0..0.5 => self.move_to_center(&mut ui, inverse_lerp(0.0..=0.5, elapsed).unwrap()),
             0.5..1.2 => self.charge(&mut ui, inverse_lerp(0.5..=1.2, elapsed).unwrap()),
             1.2..1.5 => self.idle(&mut ui),
-            1.5..2.5 => self.explode(&mut ui, &chest.items, inverse_lerp(1.5..=2.5, elapsed).unwrap()),
-            2.5..5.0 => self.fade(&mut ui, &chest.items, inverse_lerp(2.5..=5.0, elapsed).unwrap()),
-            5.0..7.5 => self.spin(&mut ui, &chest.items, inverse_lerp(5.0..=7.5, elapsed).unwrap()),
-            7.5..8.0 => self.collect(&mut ui, &chest.items, inverse_lerp(7.5..=8.0, elapsed).unwrap()),
-            _ => return self.show_items(ctx, &chest.items),
+            1.5..2.5 => self.explode(&mut ui, &items, inverse_lerp(1.5..=2.5, elapsed).unwrap()),
+            2.5..5.0 => self.fade(&mut ui, &items, inverse_lerp(2.5..=5.0, elapsed).unwrap()),
+            5.0..7.5 => self.spin(&mut ui, &items, inverse_lerp(5.0..=7.5, elapsed).unwrap()),
+            7.5..8.0 => self.collect(&mut ui, &items, inverse_lerp(7.5..=8.0, elapsed).unwrap()),
+            _ => return self.show_items(ctx, &items),
         };
         return false;
     }
 
     fn move_to_center(&self, ui: &mut Ui, t: f32) {
-        let pos = self.chest_start_rect.lerp_towards(&self.target(ui), easing::quadratic_in_out(t));
-        ui.put(pos, chest_img());
+        for rect in &self.chest_start_rects {
+            let pos = rect.lerp_towards(&self.target(ui), easing::quadratic_in_out(t));
+            ui.put(pos, chest_img());
+        }
     }
 
     fn charge(&self, ui: &mut Ui, t: f32) {
@@ -146,7 +213,7 @@ impl ChestOpening {
         ui.put(self.target(ui), chest_img());
     }
 
-    fn explode(&self, ui: &mut Ui, items: &Vec<Item>, t: f32) {
+    fn explode(&self, ui: &mut Ui, items: &Vec<&Item>, t: f32) {
         let target = self.target(ui);
 
         let full_size = ui.max_rect().size().min_elem() * 4.0;
@@ -163,7 +230,7 @@ impl ChestOpening {
         ui.put(target, open_chest_img());
     }
 
-    fn fade(&self, ui: &mut Ui, items: &Vec<Item>, t: f32) {
+    fn fade(&self, ui: &mut Ui, items: &Vec<&Item>, t: f32) {
         let target = self.target(ui);
 
         let full_size = ui.max_rect().size().min_elem() * 4.0;
@@ -176,7 +243,7 @@ impl ChestOpening {
         ui.put(target, open_chest_img());
     }
 
-    fn spin(&self, ui: &mut Ui, items: &Vec<Item>, t: f32) {
+    fn spin(&self, ui: &mut Ui, items: &Vec<&Item>, t: f32) {
         let target = self.target(ui);
 
         let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) * 0.5;
@@ -186,7 +253,7 @@ impl ChestOpening {
         ui.put(target, open_chest_img());
     }
 
-    fn collect(&self, ui: &mut Ui, items: &Vec<Item>, t: f32) {
+    fn collect(&self, ui: &mut Ui, items: &Vec<&Item>, t: f32) {
         let target = self.target(ui);
 
         let item_max_dist = 500.0.at_most(ui.max_rect().size().min_elem()) * 0.5;
@@ -195,29 +262,38 @@ impl ChestOpening {
         ui.put(target, open_chest_img());
     }
 
-    fn show_items(&self, ctx: &Context, items: &Vec<Item>) -> bool {
+    fn show_items(&self, ctx: &Context, items: &Vec<&Item>) -> bool {
         let mut close = false;
         Window::new("Opened Chest")
             .title_bar(false)
-            .resizable(false)
-            .show(ctx, |ui| {
+            .auto_sized()
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .frame(Frame::window(&ctx.style()).fill(Color32::from_gray(48)))
+            .show(ctx, |ui|
+        {
+            ScrollArea::vertical()
+                .max_height(ctx.screen_rect().height() * 0.66)
+                .max_width(0.)
+                .show(ui, |ui|
+            {
                 for item in items {
                     ui.horizontal_top(|ui| {
                         item.show(ui);
                         ui.vertical(|ui| {
                             for modifier in &item.mods {
-                                modifier.show_tooltip(ui);
+                                ui.horizontal(|ui| modifier.show_tooltip(ui));
                             }
                         });
                     });
                     ui.separator();
                 }
                 ui.vertical_centered(|ui| {
-                    if ui.button("Add to Loot").clicked() {
+                    if ui.add(Button::new("Add to Loot").fill(Color32::from_gray(14))).clicked() {
                         close = true;
                     }
                 });
             });
+        });
         return close;
     }
 }
@@ -233,7 +309,7 @@ fn circle(center: Pos2, diameter: f32, color: Color32) -> RectShape {
     .with_blur_width(diameter * 0.5)
 }
 
-fn spin_items(ui: &mut Ui, items: &Vec<Item>, dist: f32, rot: f32) {
+fn spin_items(ui: &mut Ui, items: &Vec<&Item>, dist: f32, rot: f32) {
     let rot_offset = 2.0 * PI / items.len() as f32;
 
     for (idx, item) in items.iter().enumerate() {
@@ -272,7 +348,7 @@ fn rays(
     for _ in 0..amount {
         let start = start_uniform.sample(&mut rng);
         let angle = angle_uniform.sample(&mut rng);
-        let color = *COLORS.choose(&mut rng).unwrap();
+        let color = *COLORS.pick(&mut rng);
 
         let mut progress = inverse_lerp(start..=start + duration, t).unwrap();
         if progress < 0. || progress > 1. {
@@ -306,15 +382,15 @@ fn add_chest_button_placeholder(ui: &mut Ui) -> Response {
     ui.add(SelectableImage::new(false, chest_img().tint(Color32::TRANSPARENT)))
 }
 
+const SIZE: Vec2 = vec2(32., 32.);
+
 fn chest_img<'a>() -> Image<'a> {
     Image::new(egui::include_image!("../../assets/icons/locked-chest.png"))
-        .fit_to_exact_size(vec2(32., 32.))
+        .fit_to_exact_size(SIZE)
         .tint(Color32::GOLD)
 }
 fn open_chest_img<'a>() -> Image<'a> {
-    Image::new(egui::include_image!(
-        "../../assets/icons/open-treasure-chest.png"
-    ))
-    .fit_to_exact_size(vec2(32., 32.))
-    .tint(Color32::GOLD)
+    Image::new(egui::include_image!("../../assets/icons/open-treasure-chest.png"))
+        .fit_to_exact_size(SIZE)
+        .tint(Color32::GOLD)
 }

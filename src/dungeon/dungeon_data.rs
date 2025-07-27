@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::prelude::*;
 
 use super::{dungeon::Dungeon, reward::RewardChest};
@@ -7,7 +9,7 @@ use crate::{combat::skill::skill::SkillStats, equipment::wardrobe::EquipmentSet}
 pub struct DungeonData {
     #[default(Dungeon::dummy())]
     pub cur: Dungeon,
-    pub rewards: Vec<RewardChest>,
+    pub rewards: BTreeMap<u16, Vec<RewardChest>>,
     pub auto_restart: bool,
 }
 impl DungeonData {
@@ -21,7 +23,7 @@ impl DungeonData {
         let (tick, reward) = self.cur.tick();
         if let Some(reward) = reward {
             if reward.items.len() > 0 {
-                self.rewards.push(reward);
+                self.rewards.entry(reward.depth).or_default().push(reward);
             }
             if self.auto_restart {
                 self.restart(equipment);

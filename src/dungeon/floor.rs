@@ -107,10 +107,10 @@ impl EnemyVariation {
             Self::All
         } else {
             Self::Fixed(
-                *EnemyType::Small.variants().choose(rng).unwrap(),
-                *EnemyType::Medium.variants().choose(rng).unwrap(),
-                *EnemyType::Tank.variants().choose(rng).unwrap(),
-                *EnemyType::Dps.variants().choose(rng).unwrap(),
+                *EnemyType::Small.variants().pick(rng),
+                *EnemyType::Medium.variants().pick(rng),
+                *EnemyType::Tank.variants().pick(rng),
+                *EnemyType::Dps.variants().pick(rng),
             )
         }
     }
@@ -124,7 +124,7 @@ impl EnemyVariation {
                     EnemyType::Dps => *dps,
                 }
             },
-            EnemyVariation::All => *etype.variants().choose(rng).unwrap(),
+            EnemyVariation::All => *etype.variants().pick(rng),
         }
     }
     fn get_all(&self, types: &Vec<EnemyType>, rng: &mut impl Rng) -> Vec<EnemyKind> {
