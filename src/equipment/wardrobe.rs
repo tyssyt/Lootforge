@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::prelude::*;
-use crate::{equipment::equipment::Equip, explorer::Explorer, item::{Item, ItemRef, ItemType}, mods::atk_mod};
+use crate::{equipment::equipment::Equip, explorer::Explorer, item::{item::Item, item::ItemRef, item_type::ItemType}, mods::atk_mod};
 use super::equipment::FighterEquip;
 
 #[apply(Default)]
@@ -30,12 +30,12 @@ impl Wardrobe {
         self.sets[self.equipped]
             .iter()
             .filter_map(|i| i.upgrade())
-            .for_each(|i| i.users.equipped.set(false));
+            .for_each(|i| i.tags.equipped.set(false));
 
         self.sets[idx]
             .iter()
             .filter_map(|i| i.upgrade())
-            .for_each(|i| i.users.equipped.set(true));
+            .for_each(|i| i.tags.equipped.set(true));
         self.equipped = idx;
     }
 }

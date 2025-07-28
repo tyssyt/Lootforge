@@ -1,19 +1,21 @@
-use crate::{mods::attune::AttuneKind, prelude::*};
+use crate::{item::tags::Rating, mods::attune::Attunement, prelude::*};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::atomic::{AtomicU32, Ordering}};
 
 use enumset::EnumSet;
 
-use crate::item::{Item, ItemType};
+use crate::item::{item::Item, item_type::ItemType};
 
 static ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 
 #[apply(Default)]
 pub struct ItemFilter {
     types: EnumSet<ItemType>,
+    #[default(EnumSet::all() - Rating::Trash)]
+    rating: EnumSet<Rating>,
     #[default(1..=u8::MAX)]
     ranks: RangeInclusive<u8>,
     mods: BTreeMap<u16, u8>,
-    attunement: Vec<(AttuneKind, usize)>,
+    attunement: Vec<Attunement>,
     excluded_item_ids: Vec<usize>,
 
     #[default(ID_COUNTER.fetch_add(1, Ordering::Relaxed))]
@@ -21,9 +23,10 @@ pub struct ItemFilter {
     mod_count: u32,
 }
 impl ItemFilter {
-    pub fn new(item_type: ItemType, rank: u8, mods: impl Iterator<Item = (u16, u8)>, excluded_item_ids: impl IntoIterator<Item = usize>) -> Self {
+    pub fn new(item_type: ItemType, rating: EnumSet<Rating>, rank: u8, mods: impl Iterator<Item = (u16, u8)>, excluded_item_ids: impl IntoIterator<Item = usize>) -> Self {
         Self {
             types: EnumSet::only(item_type),
+            rating,
             ranks: rank..=rank,
             mods: mods.into_iter().collect(),
             attunement: Default::default(),
@@ -32,9 +35,10 @@ impl ItemFilter {
             mod_count: 0
         }
     }
-    pub fn of_attunement(attunement: Vec<(AttuneKind, usize)>, excluded_item_ids: impl IntoIterator<Item = usize>) -> Self {
+    pub fn of_attunement(attunement: Vec<Attunement>, rating: EnumSet<Rating>, excluded_item_ids: impl IntoIterator<Item = usize>) -> Self {
         Self {
             attunement,
+            rating,
             excluded_item_ids: excluded_item_ids.into_iter().collect(),
             ..Default::default()
         }
@@ -45,12 +49,10 @@ impl ItemFilter {
     }
 
     pub fn clear(&mut self) {
-        self.types = Default::default();
-        self.ranks = RangeInclusive::new(1, u8::MAX);
-        self.mods = Default::default();
-        self.attunement = Default::default();
-        self.excluded_item_ids = Default::default();
-        self.mod_count += 1;
+        *self = ItemFilter {
+            mod_count: self.mod_count + 1,
+            ..Default::default()
+        }
     }
 
     pub fn has_type(&self, item_type: ItemType) -> bool {
@@ -60,6 +62,16 @@ impl ItemFilter {
         self.types ^= item_type;
         self.mod_count += 1;
     }
+
+    pub fn has_rating(&self, rating: Rating) -> bool {
+        self.rating.contains(rating)
+    }
+    pub fn toggle_rating(&mut self, rating: Rating) {
+        self.rating ^= rating;
+        self.mod_count += 1;
+    }
+
+
 
     pub fn ranks(&self) -> RangeInclusive<u8> {
         self.ranks.clone()
@@ -88,9 +100,10 @@ impl ItemFilter {
 
     pub fn filter(&self, item: &Item) -> bool {
         (self.types.is_empty() || self.types.contains(item.item_type))
+            && self.rating.contains(item.tags.rating())
             && self.ranks.contains(&item.rank())
             && item.has_all_mods(self.mods.iter().map(|(&m, &c)| (m, c)))
-            && (self.attunement.is_empty() || item.attunements().into_iter().any(|a| self.attunement.contains(&a)))
+            && (self.attunement.is_empty() || item.attunements.iter().any(|a| self.attunement.contains(a)))
             && !self.excluded_item_ids.contains(&item.id)
     }
 }

@@ -1,6 +1,6 @@
 use roll_tables::ALL_MODS;
 
-use crate::{combat::hooks::CombatHooks, equipment::equipment::EquipEnum, item::Item, mods::attune::AttuneGroup, panels::forge::forge, prelude::*};
+use crate::{combat::hooks::CombatHooks, equipment::equipment::EquipEnum, item::item::Item, mods::attune::AttuneGroup, panels::forge::forge, prelude::*};
 
 pub mod atk_mod;
 pub mod attune;

@@ -3,8 +3,8 @@ use std::rc::Rc;
 use crate::combat::combatant::{CharStats, Combatant};
 use crate::combat::skill::{attack, defend};
 use crate::equipment::equipment::{Equip, EquipEnum};
-use crate::item::Item;
-use crate::{combat::hooks::CombatHooks, item::ItemType};
+use crate::{item::item::Item, item::item_type::ItemType};
+use crate::combat::hooks::CombatHooks;
 use crate::prelude::*;
 
 use super::{attack::AttackStats, defend::DefStats, targeting::Targeting};

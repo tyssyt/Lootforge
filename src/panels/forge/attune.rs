@@ -1,11 +1,14 @@
 use std::iter;
 
+use enumset::EnumSet;
+
+use crate::item::tags::Rating;
 use crate::mods::attune::AttuneGroup;
 use crate::mods::RolledMod;
 use crate::prelude::*;
 use super::common::*;
 
-use crate::item::{Item, ItemRef};
+use crate::item::{item::Item, item::ItemRef};
 use crate::stash::filters::ItemFilter;
 use crate::stash::stash::Stash;
 
@@ -24,7 +27,7 @@ impl Attune {
         self.selected_mod(base).and_then(|m| m.mod_type().attunement())
     }
     fn valid_mat(&self, mat: &Item, base: &Item) -> bool {
-        mat != base && self.selected_attunement(base).is_some_and(|(group, idx)| mat.attunements().into_iter().any(|(k, i)| group.kind == k && idx != i))
+        mat != base && self.selected_attunement(base).is_some_and(|(group, idx)| mat.attunements.iter().any(|(k, i)| group.kind == *k && idx != *i))
     }
 
     pub fn show(&mut self, base_ref: &mut ItemRef, ui: &mut Ui, stash: &mut Stash) -> bool {
@@ -78,7 +81,7 @@ impl Attune {
         let idx = self.selected_mod.unwrap() as usize;
         let old_mod = self.selected_mod(&base).unwrap();
         let old_attunement_group = old_mod.mod_type().attunement().unwrap().0;
-        let new_attunement_idx = self.material.upgrade().unwrap().attunements().into_iter().find(|(k, _)| old_attunement_group.kind == *k ).unwrap().1;
+        let new_attunement_idx = self.material.upgrade().unwrap().attunements.iter().find(|(k, _)| old_attunement_group.kind == *k ).unwrap().1;
 
         let new_mod = RolledMod {
             mod_id: old_attunement_group[new_attunement_idx].id,
@@ -100,7 +103,7 @@ impl Attune {
                 self.material.upgrade().map(|item| item.id)
             );
 
-            ItemFilter::of_attunement(attunement, excluded)
+            ItemFilter::of_attunement(attunement, EnumSet::all() - Rating::Favorite, excluded)
         })
     }
 }

@@ -3,7 +3,7 @@ use std::array;
 use enum_dispatch::enum_dispatch;
 
 use crate::prelude::*;
-use crate::item::{Item, ItemRef, ItemUsers};
+use crate::item::{item::Item, item::ItemRef};
 
 use super::wardrobe::ItemSlot;
 
@@ -172,7 +172,8 @@ fn copy_owned(item: &ItemRef, owned: &mut Vec<Rc<Item>>) -> ItemRef {
             targeting: item.targeting,
             mods: item.mods.clone(),
             rerolled_mod_idx: item.rerolled_mod_idx,
-            users: ItemUsers::default(),
+            tags: Default::default(),
+            attunements: Default::default(),
         });
 
         let weak = Rc::downgrade(&cloned);

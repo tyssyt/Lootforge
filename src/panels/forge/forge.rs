@@ -7,7 +7,7 @@ use crate::prelude::*;
 use crate::stash::filters::ItemFilter;
 use crate::widgets::selectable_image::SelectableImage;
 use crate::{
-    item::{ItemRef}, stash::stash::Stash, widgets::{
+    item::item::ItemRef, stash::stash::Stash, widgets::{
         selectable_image::UiSelectableImage,
     }
 };

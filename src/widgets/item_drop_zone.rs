@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::{item::Item, stash::stash::Stash};
+use crate::{item::item::Item, stash::stash::Stash};
 
 // copied & modified from egui::Ui
 pub fn item_drop_zone<R>(

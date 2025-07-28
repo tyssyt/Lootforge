@@ -11,8 +11,8 @@ fn main() -> eframe::Result {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1280.0, 720.0])
-            .with_min_inner_size([1280.0, 720.0])
+            .with_inner_size([1440.0, 800.0])
+            .with_min_inner_size([1200.0, 700.0])
             .with_icon(
                 // NOTE: Adding an icon is optional
                 eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])

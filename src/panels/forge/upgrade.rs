@@ -1,10 +1,13 @@
 use std::iter;
 
+use enumset::EnumSet;
+
+use crate::item::tags::Rating;
 use crate::mods::roll_tables::ALL_MODS;
 use crate::prelude::*;
 use super::common::*;
 
-use crate::item::{Item, ItemRef};
+use crate::item::{item::Item, item::ItemRef};
 use crate::stash::filters::ItemFilter;
 use crate::stash::stash::Stash;
 
@@ -116,7 +119,13 @@ impl Upgrade {
             .map(|m| m.id)
             .chain(iter::once(base.id));
 
-        ItemFilter::new(base.item_type, base.rank(), self.selected_mod_counts(base), excluded)
+        ItemFilter::new(
+            base.item_type,
+            EnumSet::all() - Rating::Favorite,
+            base.rank(),
+            self.selected_mod_counts(base),
+            excluded
+        )
     }
 }
 

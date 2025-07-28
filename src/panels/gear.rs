@@ -1,4 +1,4 @@
-use crate::{equipment::{equipment::{Equip, EquipChange, FighterEquip}, wardrobe::{ItemSlot, Wardrobe}}, explorer::Explorer, item::ItemRef, prelude::*, stash::stash::Stash, widgets::item_drop_zone::item_drop_zone};
+use crate::{equipment::{equipment::{Equip, EquipChange, FighterEquip}, wardrobe::{ItemSlot, Wardrobe}}, explorer::Explorer, item::item::ItemRef, prelude::*, stash::stash::Stash, widgets::item_drop_zone::item_drop_zone};
 
 #[apply(Default)]
 pub struct GearPanel {
@@ -79,18 +79,18 @@ impl GearPanel {
     fn update_changes(&self, changes: Vec<EquipChange>, is_equipped: bool) {
         for change in changes {
             if let Some(item) = change.added.upgrade() {
-                item.users.add_wardrobe(self.open);
-                if is_equipped {item.users.equipped.set(true)}
+                item.tags.add_wardrobe(self.open);
+                if is_equipped {item.tags.equipped.set(true)}
             }
 
             if let Some(item) = change.removed.upgrade() {
-                item.users.remove_wardrobe(self.open);
-                if is_equipped {item.users.equipped.set(false);}
+                item.tags.remove_wardrobe(self.open);
+                if is_equipped {item.tags.equipped.set(false);}
             }
 
             if let Some(item) = change.removed2.upgrade() {
-                item.users.remove_wardrobe(self.open);
-                if is_equipped {item.users.equipped.set(false)}
+                item.tags.remove_wardrobe(self.open);
+                if is_equipped {item.tags.equipped.set(false)}
             }
         }
     }

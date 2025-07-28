@@ -2,7 +2,7 @@ use rand::distr::weighted::WeightedIndex;
 
 use crate::prelude::*;
 
-use crate::item::{Item, ItemType};
+use crate::item::{item::Item, item_type::ItemType};
 
 #[derive(Debug)]
 pub struct RewardChest {

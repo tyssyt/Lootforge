@@ -1,4 +1,4 @@
-use crate::{item::{Item, ItemRef, ItemType}, panels::forge::forge, prelude::*, stash::stash::Stash, widgets::{item_drop_zone::item_drop_zone, selectable_image::SelectableImage}};
+use crate::{item::{item::Item, item::ItemRef, item_type::ItemType}, panels::forge::forge, prelude::*, stash::stash::Stash, widgets::{item_drop_zone::item_drop_zone, selectable_image::SelectableImage}};
 
 pub fn show_item_slot(
     item_ref: &mut ItemRef,

@@ -1,6 +1,7 @@
 use egui_double_slider::DoubleSlider;
 
-use crate::item::ItemType;
+use crate::item::item_type::ItemType;
+use crate::item::tags::Rating;
 use crate::mods::{roll_tables, ModType};
 use crate::prelude::*;
 use crate::stash::filters::ItemFilter;
@@ -31,6 +32,8 @@ impl LootPanel {
             ui.label(RichText::new("Filters:"));
             self.show_type_filter(ui);
             ui.add_space(3.0);
+            self.show_rating_filter(ui);
+            ui.add_space(3.0);
             self.show_rank_filter(max_rank, ui);
             ui.add_space(3.0);
             self.show_mod_filter(ui);
@@ -42,7 +45,6 @@ impl LootPanel {
     }
 
     fn show_type_filter(&mut self, ui: &mut Ui) {
-        // button to remove item type filter, or at least an icon that shows it's active?
         ui.menu_button("Type", |ui| {
             ui.set_max_width(3.0 * 85.0);
             ui.horizontal_wrapped(|ui|{
@@ -55,8 +57,17 @@ impl LootPanel {
         });
     }
 
+    fn show_rating_filter(&mut self, ui: &mut Ui) {
+        ui.menu_button("Rating", |ui| {            
+            for rating in Rating::iter() {
+                if rating_button(ui, rating, self.filter.has_rating(rating)) {
+                    self.filter.toggle_rating(rating);
+                }
+            }
+        });
+    }
+
     fn show_rank_filter(&mut self, max_rank: u8, ui: &mut Ui) {
-        // button to remove item type filter, or at least an icon that shows it's active?
         ui.menu_button("Rank", |ui| {
             let (mut lower, mut upper) = self.filter.ranks().into_inner();
 
@@ -74,7 +85,6 @@ impl LootPanel {
     }
 
     fn show_mod_filter(&mut self,ui: &mut Ui) {
-        // button to remove item type filter, or at least an icon that shows it's active?
         ui.menu_button("Mods", |ui| {
             if ui.add(TextEdit::singleline(&mut self.search_text).hint_text("search")).changed() {
                 if self.search_text.is_empty() {
@@ -132,14 +142,36 @@ impl LootPanel {
                     // TODO with every update of egui, check if this is still necessary
                     ui.allocate_ui(vec2(64., 64.), |ui| {
                         let item_id = Id::new(("dnd_item", item.id));
-                        ui.dnd_drag_source(item_id, item.id, |ui| {
+                        let response = ui.dnd_drag_source(item_id, item.id, |ui| {
                             item.show(ui);
-                        })
-                        .response
-                        .on_hover_ui(|ui| item.tooltip(ui));
+                        }).response;
+
+                        response.context_menu(|ui| {
+                            ui.label("Mark item as");
+                            ui.separator();
+
+                            for rating in Rating::iter() {
+                                if rating_button(ui, rating, false) {
+                                    item.tags.set_rating(rating, stash);
+                                    ui.close_menu();
+                                }
+                            }
+                        });
+
+                        response.on_hover_ui(|ui| item.tooltip(ui));
                     });
                 }
             });
         });
     }
+}
+
+fn rating_button(ui: &mut Ui, rating: Rating, selected: bool) -> bool {
+    let text: &'static str = rating.into();
+    if let Some(image) = rating.image() {
+        ui.add(Button::image_and_text(image, text).selected(selected)).clicked()
+    } else {
+        ui.add(Button::new(text).selected(selected)).clicked()
+    }
+
 }

@@ -1,6 +1,7 @@
 use crate::combat::combatant::CombatantKind;
 use crate::combat::skill::skill::SkillStats;
 use crate::dungeon::dungeon_data::DungeonTick;
+use crate::dungeon::encounter::EncounterDifficulty;
 use crate::dungeon::floor::Floor;
 use crate::equipment::wardrobe::Wardrobe;
 use crate::panels::animation::Animation;
@@ -63,6 +64,8 @@ impl DungeonPanel {
         });
 
         ui.separator();
+        
+        show_floor_info(ui, &dungeon.cur.floor);
 
         ui.scope(|ui| {
             ui.style_mut().interaction.selectable_labels = false;
@@ -96,17 +99,6 @@ impl DungeonPanel {
                     transition,
                 );
             };
-
-            ui.put(
-                Rect::from_min_max(
-                    pos2(rect.left(), rect.top()),
-                    pos2(rect.left() + 75., rect.top() + 20.),
-                ),
-                Label::new(
-                    RichText::from(format!("Depth: {}", dungeon.cur.floor.depth))
-                        .color(Color32::DARK_RED),
-                ),
-            );
 
             #[cfg(debug_assertions)]
             ui.put(
@@ -206,6 +198,43 @@ const ENEMY_OFFSETS: [&[Vec2]; 7] = [
 fn show_stats(ui: &mut Ui, rect: Rect) -> Response {
     let rect = Rect::from_center_size(rect.center(), vec2(120., 20.));
     ui.put(rect, Button::new("Start Dungeon"))
+}
+
+fn show_floor_info(ui: &mut Ui, floor: &Floor) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::from(format!("Floor {}:", floor.depth)).size(18.));
+        for (i, encounter) in floor.encounters.iter().enumerate() {
+            let desired_size = Vec2::splat(ui.spacing().icon_width);
+            let (rect, _) = ui.allocate_exact_size(desired_size, Sense::hover());
+            
+            let color = match encounter.difficulty {
+                EncounterDifficulty::Easy => Color32::GOLD,
+                EncounterDifficulty::Medium => Color32::ORANGE,
+                EncounterDifficulty::Hard | EncounterDifficulty::Boss => Color32::RED,
+            };
+
+            let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+            // try this instead ui.painter().rect_stroke(rect, corner_radius, stroke, stroke_kind)
+            ui.painter().add(epaint::RectShape::new(
+                big_icon_rect,
+                CornerRadius::same(2),
+                Color32::TRANSPARENT,
+                Stroke::new(1.5, color),
+                epaint::StrokeKind::Outside,
+            ));
+
+            if i < floor.battle_counter as usize - 1 {
+                ui.painter().add(Shape::line(
+                    vec![
+                        pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                        pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                        pos2(small_icon_rect.right(), small_icon_rect.top()),
+                    ],
+                    Stroke::new(1.5, Color32::WHITE),
+                ));
+            }
+        }
+    });
 }
 
 #[apply(UnitEnum)]

@@ -11,10 +11,10 @@ use crate::{
 #[derive(Debug)]
 pub struct Floor {
     pub depth: u16,
-    battle_counter: u16,
+    pub battle_counter: u16,
 
     enemy_variation: EnemyVariation,
-    encounters: Vec<Encounter>,
+    pub encounters: Vec<Encounter>,
 
     pub battle: Battle,
 

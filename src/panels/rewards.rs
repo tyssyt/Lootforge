@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use crate::{
     dungeon::reward::RewardChest,
-    item::{Item, ItemType},
+    item::{item::Item, item_type::ItemType},
     prelude::*,
     stash::stash::Stash, widgets::text_in_rect::text_in_rect,
 };
@@ -116,12 +116,12 @@ fn draw_row(ui: &mut Ui, depth: u16, rewards: &Vec<RewardChest>, dont_draw_idx: 
                         chest_start_rects: vec![response.rect],
                         chest_idx: (depth, vec![i]),
                         seed: rand::rng().random(),
+                        skipped: false,
                     });
                 }
                 text_in_rect(
                     ui,
-                    RichText::new(reward.items.len().to_string()).background_color(Color32::BLACK),
-                    Color32::WHITE,
+                    RichText::new(reward.items.len().to_string()).color(Color32::WHITE).background_color(Color32::BLACK),
                     response.rect,
                     Align2::RIGHT_BOTTOM,
                 );
@@ -140,6 +140,7 @@ fn draw_row(ui: &mut Ui, depth: u16, rewards: &Vec<RewardChest>, dont_draw_idx: 
             chest_start_rects: open_5_rects,
             chest_idx: (depth, vec![0,1,2,3,4]),
             seed: rand::rng().random(),
+            skipped: false,
         });
     }
 
@@ -152,6 +153,7 @@ struct ChestOpening {
     chest_start_rects: Vec<Rect>,
     chest_idx: (u16, Vec<usize>),
     seed: [u8; 32],
+    skipped: bool,
 }
 
 impl ChestOpening {
@@ -159,7 +161,7 @@ impl ChestOpening {
         Rect::from_center_size(ui.max_rect().center(), SIZE)
     }
 
-    fn show(&self, ctx: &Context, items: Vec<&Item>) -> bool {
+    fn show(&mut self, ctx: &Context, items: Vec<&Item>) -> bool {
         ctx.request_repaint();
 
         let mut ui = Ui::new(
@@ -168,7 +170,12 @@ impl ChestOpening {
             UiBuilder::new().layer_id(LayerId::new(Order::Foreground, "ChestOpeningLayer".into())),
         );
 
+        if self.skipped {
+            return self.show_items(ctx, &items)
+        }
+
         let elapsed = self.start.elapsed().unwrap().as_secs_f32();
+
         match elapsed {
             0.0..0.5 => self.move_to_center(&mut ui, inverse_lerp(0.0..=0.5, elapsed).unwrap()),
             0.5..1.2 => self.charge(&mut ui, inverse_lerp(0.5..=1.2, elapsed).unwrap()),
@@ -179,6 +186,15 @@ impl ChestOpening {
             7.5..8.0 => self.collect(&mut ui, &items, inverse_lerp(7.5..=8.0, elapsed).unwrap()),
             _ => return self.show_items(ctx, &items),
         };
+
+
+        if ui.put(
+            Rect::from_center_size(ui.max_rect().center() + vec2(300., 300.), vec2(100., 40.)),
+            Button::new("Skip")
+        ).clicked() {
+            self.skipped = true;
+        }
+
         return false;
     }
 
@@ -278,7 +294,9 @@ impl ChestOpening {
             {
                 for item in items {
                     ui.horizontal_top(|ui| {
+                        ui.add_space(5.);
                         item.show(ui);
+                        ui.add_space(2.);
                         ui.vertical(|ui| {
                             for modifier in &item.mods {
                                 ui.horizontal(|ui| modifier.show_tooltip(ui));

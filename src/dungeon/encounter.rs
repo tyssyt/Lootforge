@@ -21,7 +21,8 @@ impl Encounter {
         if depth < 10 {
             Self::genrate_early_game(depth, rng)
         } else if depth % 10 == 0 {
-            todo!("generate Boss encounter")
+            // TODO generate boss encounter
+            Self::generate_normal(depth, rng)
         } else {
             Self::generate_normal(depth, rng)
         }

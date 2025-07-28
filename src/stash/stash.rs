@@ -1,7 +1,7 @@
-use crate::{item::ItemType, mods::{atk_mod, char_mod, RolledMod}, prelude::*, stash::{filters::ItemFilter, order::Order}};
+use crate::{mods::{atk_mod, char_mod, RolledMod}, prelude::*, stash::{filters::ItemFilter, order::Order}};
 use std::mem;
 
-use crate::item::Item;
+use crate::item::{item::Item, item_type::ItemType};
 
 
 #[derive(PartialEq)]
@@ -19,6 +19,10 @@ pub struct Stash {
 }
 
 impl Stash {
+    pub fn invalidate_cached_filter(&mut self) {
+        self.cached_filter = None;
+    }
+
     fn get_next_id(&mut self) -> usize {
         let id = self.next_id;
         self.next_id += 1;
@@ -30,7 +34,7 @@ impl Stash {
     }
 
     pub fn add(&mut self, mut item: Item) {
-        self.cached_filter = None;
+        self.invalidate_cached_filter();
         self.max_rank = item.rank().at_least(self.max_rank);
 
         item.id = self.get_next_id();
@@ -38,7 +42,7 @@ impl Stash {
     }
 
     pub fn remove(&mut self, item: Rc<Item>) {
-        self.cached_filter = None;
+        self.invalidate_cached_filter();
         self.items.remove(self.items.iter().position(|i| *i == item).unwrap());
         let count = Rc::strong_count(&item);
         if count != 1 {
@@ -47,7 +51,7 @@ impl Stash {
     }
 
     pub fn modify(&mut self, item: Rc<Item>, f: impl FnOnce(&mut Item)) {
-        self.cached_filter = None;
+        self.invalidate_cached_filter();
 
         let id = item.id;
         mem::drop(item); // invalidate the rc, so that the only remaining one is the stashes
@@ -61,7 +65,9 @@ impl Stash {
         unsafe {            
             // Rc::get_mut_unchecked
             let ptr = Rc::as_ptr(item) as *mut Item;
-            f(&mut *ptr);
+            let mut_item = &mut *ptr;
+            f(mut_item);
+            mut_item.recompute_attunements();
         }
     }
 

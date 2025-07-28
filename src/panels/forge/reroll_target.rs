@@ -1,9 +1,12 @@
 use std::iter;
 
+use enumset::EnumSet;
+
+use crate::item::tags::Rating;
 use crate::prelude::*;
 use super::common::*;
 
-use crate::item::{Item, ItemRef};
+use crate::item::{item::Item, item::ItemRef};
 use crate::stash::filters::ItemFilter;
 use crate::stash::stash::Stash;
 
@@ -99,7 +102,12 @@ impl RerollTarget {
             self.material.upgrade().map(|item| item.id)
         );
 
-        ItemFilter::new(base.item_type, base.rank(), mods, excluded)
+        ItemFilter::new(
+            base.item_type,
+            EnumSet::all() - Rating::Favorite,
+            base.rank(), mods,
+            excluded
+        )
     }
 }
 

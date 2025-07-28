@@ -58,3 +58,18 @@ impl PartialEq for AttuneGroup {
     }
 }
 impl Eq for &'static AttuneGroup {}
+
+pub type Attunement = (AttuneKind, usize);
+
+pub fn name(attunement: &Attunement) -> &'static str {
+    // TODO color these
+    match attunement {
+        (AttuneKind::Element, 0) => "bleed",
+        (AttuneKind::Element, 1) => "fracture",
+        (AttuneKind::Element, 2) => "madness",
+        (AttuneKind::Element, 3) => "void",
+        (AttuneKind::MatSpirit, 0) => "material",
+        (AttuneKind::MatSpirit, 1) => "spiritual",
+        _ => panic!(),
+    }
+}

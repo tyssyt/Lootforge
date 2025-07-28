@@ -6,19 +6,10 @@ use std::{
 };
 
 use crate::{
-    prelude::*,
-    combat::skill::targeting::Targeting,
-    dungeon::{dungeon::Dungeon, dungeon_data::DungeonData, floor::Floor, reward::RewardChest},
-    elemental::Element,
-    equipment::{
+    combat::skill::targeting::Targeting, dungeon::{dungeon::Dungeon, dungeon_data::DungeonData, floor::Floor, reward::RewardChest}, elemental::Element, equipment::{
         equipment::{CommonEquip, FighterEquip},
         wardrobe::{EquipmentSet, Wardrobe},
-    },
-    item::{Item, ItemRef, ItemType, ItemUsers},
-    mods::RolledMod,
-    stash::stash::Stash,
-    timekeeper::Timekeeper,
-    LootforgeApp,
+    }, item::{item::{Item, ItemRef}, item_type::ItemType, tags::{ItemTags, Rating}}, mods::RolledMod, prelude::*, stash::stash::Stash, timekeeper::Timekeeper, LootforgeApp
 };
 use web_time::SystemTime;
 
@@ -81,8 +72,8 @@ fn ser_stash(bytes: &mut Vec<u8>, stash: &Stash) -> BTreeMap<usize, u32> {
 
     ser_u32(bytes, stash.items().len() as u32);
     for (i, item) in stash.items().iter().enumerate() {
-        ser_item(bytes, item.as_ref());
-        if item.users.any_wardrobe.get() {
+        ser_item(bytes, item.as_ref(), true);
+        if item.tags.any_wardrobe() {
             items.insert(item.id, (i + 1) as u32);
         }
     }
@@ -92,7 +83,7 @@ fn deser_stash(bytes: &mut &[u8]) -> Option<Stash> {
     let mut stash = Stash::default();
     let len = deser_u32(bytes)?;
     for _ in 0..len {
-        stash.add(deser_item(bytes)?);
+        stash.add(deser_item(bytes, true)?);
     }
     Some(stash)
 }
@@ -137,7 +128,7 @@ fn deser_wardrobe(bytes: &mut &[u8], stash: &Stash) -> Option<Wardrobe> {
 
     sets.iter().enumerate().for_each(|(i, set)| {
         set.iter().for_each(|item| {
-            item.upgrade().map(|item| item.users.add_wardrobe(i));
+            item.upgrade().map(|item| item.tags.add_wardrobe(i));
         });
     });
 
@@ -203,7 +194,7 @@ fn ser_rewards(bytes: &mut Vec<u8>, rewards: &BTreeMap<u16, Vec<RewardChest>>) {
         ser_u16(bytes, chest.depth);
         ser_u16(bytes, chest.items.len() as u16);
         for item in &chest.items {
-            ser_item(bytes, item);
+            ser_item(bytes, item, false);
         }
     }
 }
@@ -213,7 +204,7 @@ fn deser_rewards(bytes: &mut &[u8]) -> Option<BTreeMap<u16, Vec<RewardChest>>> {
     for _ in 0..len {
         let depth = deser_u16(bytes)?;
         let len = deser_u16(bytes)?;
-        let items = (0..len).map(|_| deser_item(bytes)).collect::<Option<_>>()?;
+        let items = (0..len).map(|_| deser_item(bytes, false)).collect::<Option<_>>()?;
         rewards.entry(depth).or_default().push(RewardChest { depth, items });
     }
     Some(rewards)
@@ -241,7 +232,7 @@ fn ser_dungeon(bytes: &mut Vec<u8>, dungeon: &Dungeon) {
 
     fn ser_dungeon_item(bytes: &mut Vec<u8>, item: &Weak<Item>) {
         if let Some(item) = item.upgrade() {
-            ser_item(bytes, &item);
+            ser_item(bytes, &item, false);
         } else {
             ser_u8(bytes, 0);
         }
@@ -267,7 +258,7 @@ fn deser_dungeon(bytes: &mut &[u8]) -> Option<Dungeon> {
 
         static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
-        let mut item = deser_item(bytes)?;
+        let mut item = deser_item(bytes, false)?;
         item.id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
         let item = Rc::new(item);
         let weak = Rc::downgrade(&item);
@@ -314,21 +305,31 @@ fn dungeon_checksum(level: &Floor) -> u32 {
 
 // --
 
-fn ser_item(bytes: &mut Vec<u8>, item: &Item) {
+fn ser_item(bytes: &mut Vec<u8>, item: &Item, with_tags: bool) {
     ser_u8(bytes, item.item_type as u8);
     ser_targeting(bytes, &item.targeting);
     ser_mods(bytes, &item.mods);
     ser_u8(bytes, item.rerolled_mod_idx);
+    if with_tags {
+        ser_u8(bytes, item.tags.rating() as u8);
+    }
 }
-fn deser_item(bytes: &mut &[u8]) -> Option<Item> {
-    Some(Item {
+fn deser_item(bytes: &mut &[u8], with_tags: bool) -> Option<Item> {
+    let mut item = Item {
         id: 0,
         item_type: ItemType::from_repr(deser_u8(bytes)?)?,
         targeting: deser_targeting(bytes)?,
         mods: deser_mods(bytes)?,
         rerolled_mod_idx: deser_u8(bytes)?,
-        users: ItemUsers::default(),
-    })
+        tags: if with_tags {
+            ItemTags::from_rating(Rating::from_repr(deser_u8(bytes)?)?)
+        } else {
+            Default::default()
+        },
+        attunements: Vec::new(),
+    };
+    item.recompute_attunements();
+    Some(item)
 }
 
 fn ser_targeting(bytes: &mut Vec<u8>, targeting: &Option<Targeting>) {
