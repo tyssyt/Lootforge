@@ -27,14 +27,30 @@ struct BattleData {
 }
 
 impl DungeonPanel {
+    pub fn tick(
+        &mut self,
+        dungeon: &DungeonData,
+        frame_info: &FrameInfo,
+        just_finished_loading: bool,
+    ) {
+        if !dungeon.cur.finished {
+            if just_finished_loading || frame_info.catch_up.is_some() || frame_info.dungeon_tick.as_ref().is_some_and(|t| t.new_battle) {
+                self.battle = BattleData::from(&dungeon.cur.floor.battle);
+            }
+
+            if frame_info.tick {
+                self.battle.tick(&frame_info.dungeon_tick);
+            }
+        }
+    }
+
     pub fn show(
         &mut self,
         ui: &mut Ui,
         dungeon: &mut DungeonData,
         wardrobe: &Wardrobe,
         rewards_window: &mut RewardsWindow,
-        frame_info: FrameInfo,
-        just_finished_loading: bool,
+        frame_info: &FrameInfo,
     ) {
         ui.horizontal(|ui| {
             ui.heading("Dungeon");
@@ -64,51 +80,45 @@ impl DungeonPanel {
         });
 
         ui.separator();
-        
-        show_floor_info(ui, &dungeon.cur.floor);
 
-        ui.scope(|ui| {
-            ui.style_mut().interaction.selectable_labels = false;
-            let rect = ui.add(dungeon.cur.area.background.image()).rect;
-            ui.set_clip_rect(rect);
-
-            if dungeon.cur.finished {
-                if show_stats(ui, rect).clicked() {
-                    dungeon.restart(wardrobe.equipped());
-                }
-            } else {
-                if just_finished_loading || frame_info.catch_up.is_some() || frame_info.dungeon_tick.as_ref().is_some_and(|t| t.new_battle) {
-                    self.battle = BattleData::from(&dungeon.cur.floor.battle);
-                }
-
-                if frame_info.tick {
-                    self.battle.tick(&frame_info.dungeon_tick);
-                }
-
-                let transition = dungeon
-                    .cur
-                    .floor
-                    .transition
-                    .map(|f| (Floor::TRANSITION_TIME - f, frame_info.anim(ui.ctx(), 30, f, easing::linear)));
-
-                show_battle(
-                    ui,
-                    rect,
-                    &dungeon.cur.floor.battle,
-                    &mut self.battle,
-                    transition,
+        ScrollArea::vertical().show(ui, |ui|{
+            show_floor_info(ui, &dungeon.cur.floor);
+            
+            ui.scope(|ui| {
+                ui.style_mut().interaction.selectable_labels = false;
+                let rect = ui.add(dungeon.cur.area.background.image()).rect;
+                ui.set_clip_rect(rect);
+                
+                if dungeon.cur.finished {
+                    if show_stats(ui, rect).clicked() {
+                        dungeon.restart(wardrobe.equipped());
+                    }
+                } else {                    
+                    let transition = dungeon
+                        .cur
+                        .floor
+                        .transition
+                        .map(|f| (Floor::TRANSITION_TIME - f, frame_info.anim(ui.ctx(), 30, f, easing::linear)));
+                
+                    show_battle(
+                        ui,
+                        rect,
+                        &dungeon.cur.floor.battle,
+                        &mut self.battle,
+                        transition,
+                    );
+                };
+            
+                #[cfg(debug_assertions)]
+                ui.put(
+                    Rect::from_min_max(
+                        pos2(rect.right() - 75., rect.top()),
+                        pos2(rect.right(), rect.top() + 20.),
+                    ),
+                    Label::new(format!("{:.0} ms", frame_info.delay * 1000.)),
                 );
-            };
-
-            #[cfg(debug_assertions)]
-            ui.put(
-                Rect::from_min_max(
-                    pos2(rect.right() - 75., rect.top()),
-                    pos2(rect.right(), rect.top() + 20.),
-                ),
-                Label::new(format!("{:.0} ms", frame_info.delay * 1000.)),
-            );
-            ui.force_set_min_rect(rect);
+                ui.force_set_min_rect(rect);
+            });
         });
     }
 }

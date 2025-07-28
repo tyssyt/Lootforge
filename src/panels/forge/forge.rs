@@ -27,7 +27,6 @@ pub struct ForgePanel {
 impl ForgePanel {
     pub fn show(&mut self, ui: &mut Ui, stash: &mut Stash) {
         let mut changed = false;
-        ui.heading("Forge");
         ui.horizontal(|ui| {
             changed |= ui.selectable_image(&mut self.tab, Tab::Upgrade, Tab::Upgrade.image()).changed();
             changed |= ui.selectable_image(&mut self.tab, Tab::RerollRandom, Tab::RerollRandom.image()).changed();

@@ -14,7 +14,7 @@ pub fn show_item_slot(
 
         if let Some(item) = item_ref.upgrade() {
             let response = item.show_sized(ui, size);
-            if response.interact(Sense::click()).clicked_by(PointerButton::Secondary) {
+            if response.interact(Sense::click()).secondary_clicked() {
                 *item_ref = ItemRef::new();
                 changed = true;
             }

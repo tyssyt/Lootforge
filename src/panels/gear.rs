@@ -7,7 +7,6 @@ pub struct GearPanel {
 
 impl GearPanel {
     pub fn show(&mut self, ui: &mut Ui, wardrobe: &mut Wardrobe, stash: &Stash) {
-        ui.heading("Wardrobe");
         ui.horizontal(|ui| {
             ui.style_mut()
                 .text_styles
@@ -113,10 +112,10 @@ fn show_item_slot_fighter(
 
         if let Some(item) = item.upgrade() {
             let response = item.show_tinted(ui, tint);            
-            if response.interact(Sense::click()).clicked_by(PointerButton::Secondary) {
+            if response.interact(Sense::click()).secondary_clicked() {
                 equip.set_item(ItemRef::new(), slot).map(|c| changes.push(c));
             }
-            response.on_hover_ui(|ui| item.tooltip(ui));
+                response.on_hover_ui(|ui| item.tooltip(ui));
         } else if let Some(default) = slot.default_type(Explorer::Fighter) {
             ui.add(default.image().tint(Color32::DARK_GRAY));
         }

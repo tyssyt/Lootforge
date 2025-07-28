@@ -18,6 +18,8 @@ use crate::{
 
 #[derive(Debug, SmartDefault)]
 pub struct LootforgeApp {
+    pub left_panel: LeftPanel,
+
     pub storage_manager: StorageManager,
     pub timekeeper: Timekeeper,
     pub stash: Stash,
@@ -102,16 +104,8 @@ impl eframe::App for LootforgeApp {
             frame_info.dungeon_tick = dungeon_tick;
             self.timekeeper.report_frames(1);
         }
+        self.dungeon_panel.tick(&self.dungeon, &frame_info, just_finished_loading);
 
-        if ctx.available_rect().width() < 1280. || ctx.available_rect().height() < 720. {
-            // TODO use a scene to enable zoom? or look into the source code of scene how it does it!
-            // afaics this won't work herem but needs to be within a ui, so the panel approach below won't work
-            // but maybe with groups or somthing
-
-            // weirdly, zoom with ctrl + +/- works in browser and native, but not ctrl + scrollweel
-            // zooming in browser requires me setting something in aceessebility settings
-            // and even then i can only zoom in, and not zoom at all on the desktop version toggle
-        }
 
         let save = TopBottomPanel::top("Header Bar")
             .min_height(32.)
@@ -120,29 +114,41 @@ impl eframe::App for LootforgeApp {
                 header::show(ui, &mut self.settings)
             }).inner;
 
-        SidePanel::left("forge & gear")
-            .min_width(420.)
-            .resizable(false)
-            .show(ctx, |ui| {
-                self.forge.show(ui, &mut self.stash);
-                ui.separator();
-                self.gear_panel.show(ui, &mut self.wardrobe, &self.stash);
+        if !self.settings.compact_mode && self.left_panel == LeftPanel::Dungeon {
+            self.left_panel = Default::default();
+        }
+
+        let mut left_panel = SidePanel::left("forge & gear").resizable(false);
+        if self.left_panel != LeftPanel::Dungeon {
+            left_panel = left_panel.exact_width(450.);
+        }
+        left_panel.show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.left_panel, LeftPanel::Forge, RichText::new("Forge").heading());
+                ui.selectable_value(&mut self.left_panel, LeftPanel::Wardrobe, RichText::new("Wardrobe").heading());
+                if self.settings.compact_mode {
+                    ui.selectable_value(&mut self.left_panel, LeftPanel::Dungeon, RichText::new("Dungeon").heading());
+                }
             });
-        SidePanel::left("workbench & dungeon")
-            .resizable(false)
-            .show(ctx, |ui| {
-                self.dungeon_panel.show(
-                    ui,
-                    &mut self.dungeon,
-                    &self.wardrobe,
-                    &mut self.rewards,
-                    frame_info,
-                    just_finished_loading,
-                );
+            ui.separator();
+            match self.left_panel {
+                LeftPanel::Forge    => self.forge.show(ui, &mut self.stash),
+                LeftPanel::Wardrobe => self.gear_panel.show(ui, &mut self.wardrobe, &self.stash),
+                LeftPanel::Dungeon  => self.dungeon_panel.show(ui, &mut self.dungeon, &self.wardrobe, &mut self.rewards, &frame_info),
+            }
+        });
+
+        if !self.settings.compact_mode {
+            SidePanel::right("dungeon")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    self.dungeon_panel.show(ui, &mut self.dungeon, &self.wardrobe, &mut self.rewards, &frame_info);
             });
+        }
 
         CentralPanel::default().show(ctx, |ui| {
-            self.loot_panel.show(ui, &mut self.stash, self.forge.filter());
+            let filter_override = if self.left_panel == LeftPanel::Forge { self.forge.filter() } else { None };
+            self.loot_panel.show(ui, &mut self.stash, filter_override);
         });
 
         self.rewards.show(ctx, &mut self.dungeon, &mut self.stash);
@@ -172,4 +178,13 @@ impl eframe::App for LootforgeApp {
         info!("exiting - saving now");
         StorageManager::def_save(self);
     }
+}
+
+#[apply(UnitEnum)]
+#[derive(Default)]
+pub enum LeftPanel {
+    #[default]
+    Forge,
+    Wardrobe,
+    Dungeon,
 }

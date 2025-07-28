@@ -3,6 +3,7 @@ use crate::{prelude::*, widgets::selectable_image::SelectableImage};
 #[apply(Default)]
 pub struct SettingsWindow {
     open: bool,
+    pub compact_mode: bool,
     delete_confirm_open: bool,
 }
 impl SettingsWindow {
