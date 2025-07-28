@@ -1,4 +1,5 @@
-use crate::combat::skill::hit;
+use crate::combat::combatant::CombatantKind;
+use crate::combat::enemy::EnemyType;
 use crate::prelude::*;
 
 use crate::{combat::combatant::Combatant, elemental::Element};
@@ -13,10 +14,9 @@ pub enum Targeting {
 
     // Rings
     LowestHealth,
-    LowestEffectiveHealth(Element),
     LowestResistance(Element),
-    HighestRank, // or just dps
-    LowestRank, // or just dps
+    HighestMaxHealth,
+    HighestDamage,
     RoundRobin(u8),
     // atk together with ally (attunable)
     // Fighter, Range, Mage (for support skills once we have those chars in)
@@ -29,11 +29,12 @@ pub enum Targeting {
 }
 impl Targeting {
     pub fn roll_ring(rng: &mut impl Rng) -> Self {
-        match rng.random_range(0..4) {
+        match rng.random_range(0..=4) {
             0 => LowestHealth,
-            1 => LowestEffectiveHealth(*Element::VARIANTS.pick(rng)),
-            2 => LowestResistance(*Element::VARIANTS.pick(rng)),
-            3 => RoundRobin(0),
+            1 => LowestResistance(*Element::VARIANTS.pick(rng)),
+            2 => HighestMaxHealth,
+            3 => HighestDamage,
+            4 => RoundRobin(0),
             _ => panic!(),
         }
     }
@@ -42,11 +43,24 @@ impl Targeting {
         match self {
             First => targets[0],
             LowestHealth => targets.iter_mut().min_by_key(|t| F32Ord(t.health)).unwrap(),
-            LowestEffectiveHealth(element) => targets.iter_mut().max_by_key(|t| F32Ord(hit::effective_health(t.health, *t.stats().resistances.get(*element)))).unwrap(), // TODO incredibly inefficient because char() does not get cached
             LowestResistance(element) => targets.iter_mut().min_by_key(|t| F32Ord(*t.stats().resistances.get(*element))).unwrap(), // TODO incredibly inefficient because char() does not get cached
-            HighestRank => todo!(),
-            LowestRank => todo!(),
-            RoundRobin(i) => {let len = targets.len(); *i = i.wrapping_add(1); targets[*i as usize % len]}, // TODO this behaves a bit weird when an enemy dies
+            HighestMaxHealth => targets.iter_mut().max_by_key(|t| F32Ord(t.stats().max_health)).unwrap(),
+            HighestDamage => {
+                // TODO if we have stats, we can do this maybe better
+                targets.iter_mut().max_by_key(|t| match t.kind {
+                    CombatantKind::Fighter => panic!(),
+                    CombatantKind::Enemy(_, enemy_kind) => match enemy_kind.etype() {
+                        EnemyType::Small => 1,
+                        EnemyType::Medium => 3,
+                        EnemyType::Tank => 2,
+                        EnemyType::Dps => 4,
+                    },
+                }).unwrap()
+            },
+            RoundRobin(i) => {
+                let len = targets.len();
+                *i = i.wrapping_add(1); targets[*i as usize % len]
+            },
             Instant | OnAttack => panic!(),
         }
     }

@@ -92,8 +92,10 @@ impl Combatant {
         hooks.on_pre_hit(move |attack: &mut PreHit, _skill: &Skill, _user: &Combatant, _target: &Combatant| {
             attack.penetration = attack.penetration + depth as f32;
         });
+        let weakness = *Element::VARIANTS.pick(rng);
         hooks.on_char(move |char: &mut CharStats| {
             char.resistances = char.resistances + (depth as f32) / 2.;
+            char.resistances.set(char.resistances.get(weakness) - 10., weakness);
         });
         
         let damage_type = *Element::VARIANTS.pick(rng);

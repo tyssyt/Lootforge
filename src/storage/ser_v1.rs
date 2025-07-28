@@ -335,33 +335,37 @@ fn deser_item(bytes: &mut &[u8], with_tags: bool) -> Option<Item> {
 fn ser_targeting(bytes: &mut Vec<u8>, targeting: &Option<Targeting>) {
     use Targeting::*;
     match targeting {
-        Some(First)                                    => { ser_u8(bytes, 1); ser_u8(bytes, 0); },
-        Some(LowestHealth)                             => { ser_u8(bytes, 2); ser_u8(bytes, 0); },
-        Some(LowestEffectiveHealth(element)) => { ser_u8(bytes, 3); ser_u8(bytes, *element as u8); },
-        Some(LowestResistance(element))      => { ser_u8(bytes, 4); ser_u8(bytes, *element as u8); },
-        Some(HighestRank)                              => { ser_u8(bytes, 5); ser_u8(bytes, 0); },
-        Some(LowestRank)                               => { ser_u8(bytes, 6); ser_u8(bytes, 0); },
-        Some(RoundRobin(u))                       => { ser_u8(bytes, 7); ser_u8(bytes, *u); },
+        None                                      => ser_u8(bytes, 0),
+        Some(First)                               => ser_u8(bytes, 1),
+        Some(LowestHealth)                        => ser_u8(bytes, 2),
+        Some(LowestResistance(Element::Bleed))    => ser_u8(bytes, 3),
+        Some(LowestResistance(Element::Fracture)) => ser_u8(bytes, 4),
+        Some(LowestResistance(Element::Madness))  => ser_u8(bytes, 5),
+        Some(LowestResistance(Element::Void))     => ser_u8(bytes, 6),
+        Some(HighestMaxHealth)                    => ser_u8(bytes, 7),
+        Some(HighestDamage)                       => ser_u8(bytes, 8),
+        Some(RoundRobin(_))                       => ser_u8(bytes, 9),
 
-        Some(Instant)                                  => { ser_u8(bytes, 100); ser_u8(bytes, 0); },
-        Some(OnAttack)                                 => { ser_u8(bytes, 101); ser_u8(bytes, 0); },
-        None                                           => { ser_u8(bytes, 0); ser_u8(bytes, 0); },
+        Some(Instant)                             => ser_u8(bytes, 100),
+        Some(OnAttack)                            => ser_u8(bytes, 101),
     };
 }
 fn deser_targeting(bytes: &mut &[u8]) -> Option<Option<Targeting>> {
     use Targeting::*;
-    match (deser_u8(bytes)?, deser_u8(bytes)?) {
-        (1, _)     => Some(Some(First)),
-        (2, _)     => Some(Some(LowestHealth)),
-        (3, u) => Some(Some(LowestEffectiveHealth(Element::from_repr(u)?))),
-        (4, u) => Some(Some(LowestResistance(Element::from_repr(u)?))),
-        (5, _)     => Some(Some(HighestRank)),
-        (6, _)     => Some(Some(LowestRank)),
-        (7, u) => Some(Some(RoundRobin(u))),
-        (0, _)     => Some(None),
+    match deser_u8(bytes)? {
+        0 => Some(None),
+        1 => Some(Some(First)),
+        2 => Some(Some(LowestHealth)),
+        3 => Some(Some(LowestResistance(Element::Bleed))),
+        4 => Some(Some(LowestResistance(Element::Fracture))),
+        5 => Some(Some(LowestResistance(Element::Madness))),
+        6 => Some(Some(LowestResistance(Element::Void))),
+        7 => Some(Some(HighestMaxHealth)),
+        8 => Some(Some(HighestDamage)),
+        9 => Some(Some(RoundRobin(0))),
 
-        (100, _)   => Some(Some(Instant)),
-        (101, _)   => Some(Some(OnAttack)),
+        100   => Some(Some(Instant)),
+        101   => Some(Some(OnAttack)),
         _ => None
     }
 }

@@ -182,39 +182,21 @@ impl Item {
             ui.separator();
         }
 
-        // TODO show tags and en explanation what they mean
-
         if let Some(targeting) = self.targeting {
             use Targeting::*;
             match targeting {
                 // Attack
-                LowestHealth => {
-                    ui.label("Target lowest health");
-                }
-                LowestEffectiveHealth(element) => {
-                    ui.label(format!(
-                        "Target lowest effective health against {:?}",
-                        element
-                    ));
-                }
-                LowestResistance(element) => {
-                    ui.label(format!("Target lowest resistance to {:?}", element));
-                }
-                HighestRank => todo!(),
-                LowestRank => todo!(),
-                RoundRobin(_) => {
-                    ui.label("Target Round Robin");
-                }
+                LowestHealth => ui.label("Target combatant with lowest current health"),
+                LowestResistance(element) => ui.label(format!("Target combatant with lowest resistance to {:?}", element)),
+                HighestMaxHealth => ui.label("Target combatant with highest maximum health"),
+                HighestDamage => ui.label("Target combatant with highest damage"),
+                RoundRobin(_) => ui.label("Target a different combatant every attack"),
                 First => panic!(),
 
                 // Defend
-                Instant => {
-                    ui.label("Triggers Instantly");
-                }
-                OnAttack => {
-                    ui.label("Triggers when Attacked");
-                }
-            }
+                Instant => ui.label("Triggers Instantly"),
+                OnAttack => ui.label("Triggers when Attacked"),
+            };
             ui.separator();
         }
 

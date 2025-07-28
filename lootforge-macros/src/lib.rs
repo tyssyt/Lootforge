@@ -68,7 +68,7 @@ fn wrap_tokens(tokens: Vec<Token>) -> TokenStream {
     [
         Ident(Ident::new("ui", Span::call_site())),
         Punct(Punct::new('.', Spacing::Alone)),
-        Ident(Ident::new("horizontal_wrapped", Span::call_site())),
+        Ident(Ident::new("horizontal", Span::call_site())),
         Group(Group::new(Delimiter::Parenthesis, [
             Punct(Punct::new('|', Spacing::Alone)),
             Ident(Ident::new("ui", Span::call_site())),
